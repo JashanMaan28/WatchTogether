@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+
+{% block title %}{{ group.name }} Members - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="row" style="overflow: visible;">
+    <div class="col-12" style="overflow: visible;">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2>
+                    <a href="{{ url_for('groups.view_group', group_id=group.id) }}" 
+                       class="text-decoration-none">{{ group.name }}</a>
+                    <small class="text-muted">/ Members</small>
+                </h2>
+                <p class="text-muted mb-0">{{ members|length }} member{{ 's' if members|length != 1 else '' }}</p>
+            </div>
+            
+            <div>
+                {% if user_membership.role in ['admin'] or group.created_by == current_user.id %}
+                <button class="btn btn-outline-primary btn-sm me-2" disabled>
+                    <i class="bi bi-person-plus me-1"></i>Invite Members
+                </button>
+                {% endif %}
+                
+                <a href="{{ url_for('groups.view_group', group_id=group.id) }}" 
+                   class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>Back to Group
+                </a>
+            </div>
+        </div>
+
+        <!-- Members List -->
+        <div class="card">
+            <div class="card-body p-0" style="overflow: visible;">
+                {% for membership, user in members %}
+                <div class="d-flex align-items-center p-3 border-bottom member-row" style="position: relative;">
+                    <img src="{{ user.get_profile_picture_url() }}" 
+                         alt="{{ user.username }}" 
+                         class="rounded-circle me-3" 
+                         width="48" height="48">
+                    
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center">
+                            <h6 class="mb-0 me-2">{{ user.get_full_name() or user.username }}</h6>
+                            
+                            {% if group.created_by == user.id %}
+                            <span class="badge bg-warning text-dark me-1">
+                                <i class="bi bi-star-fill"></i> Creator
+                            </span>
+                            {% endif %}
+                            
+                            <span class="badge bg-{{ 'primary' if membership.role == 'admin' else 'info' if membership.role == 'moderator' else 'secondary' }}">
+                                {{ membership.role.title() }}
+                            </span>
+                        </div>
+                        
+                        <div class="text-muted small">
+                            @{{ user.username }}
+                            {% if user.bio %}
+                            • {{ user.bio[:50] }}{% if user.bio|length > 50 %}...{% endif %}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="text-muted small">
+                            Joined {{ membership.joined_at.strftime('%B %d, %Y') }}
+                        </div>
+                    </div>
+                    
+                    <div class="text-end">
+                        {% if user.id != current_user.id %}
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" 
+                                    type="button" 
+                                    data-bs-toggle="dropdown"
+                                    data-bs-auto-close="true"
+                                    aria-expanded="false">
+                                <i class="bi bi-three-dots"></i> Manage
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow">
+                                {% set can_manage = group.can_user_manage_members(current_user.id) %}
+                                {% if can_manage %}
+                                    <!-- Promotion Options -->
+                                    {% if membership.role == 'member' %}
+                                        {% if user_membership.role == 'admin' or group.created_by == current_user.id %}
+                                        <li>
+                                            <form method="POST" 
+                                                  action="{{ url_for('groups.manage_member', group_id=group.id, user_id=user.id) }}"
+                                                  class="d-inline w-100">
+                                                {{ manage_form.hidden_tag() }}
+                                                <input type="hidden" name="action" value="promote_moderator">
+                                                <button type="submit" class="dropdown-item w-100 text-start">
+                                                    <i class="bi bi-arrow-up text-info me-1"></i>Promote to Moderator
+                                                </button>
+                                            </form>
+                                        </li>
+                                        <li>
+                                            <form method="POST" 
+                                                  action="{{ url_for('groups.manage_member', group_id=group.id, user_id=user.id) }}"
+                                                  class="d-inline w-100">
+                                                {{ manage_form.hidden_tag() }}
+                                                <input type="hidden" name="action" value="promote_admin">
+                                                <button type="submit" class="dropdown-item w-100 text-start">
+                                                    <i class="bi bi-arrow-up text-primary me-1"></i>Promote to Admin
+                                                </button>
+                                            </form>
+                                        </li>
+                                        {% endif %}
+                                    {% elif membership.role == 'moderator' %}
+                                        {% if user_membership.role == 'admin' or group.created_by == current_user.id %}
+                                        <li>
+                                            <form method="POST" 
+                                                  action="{{ url_for('groups.manage_member', group_id=group.id, user_id=user.id) }}"
+                                                  class="d-inline w-100">
+                                                {{ manage_form.hidden_tag() }}
+                                                <input type="hidden" name="action" value="promote_admin">
+                                                <button type="submit" class="dropdown-item w-100 text-start">
+                                                    <i class="bi bi-arrow-up text-primary me-1"></i>Promote to Admin
+                                                </button>
+                                            </form>
+                                        </li>
+                                        <li>
+                                            <form method="POST" 
+                                                  action="{{ url_for('groups.manage_member', group_id=group.id, user_id=user.id) }}"
+                                                  class="d-inline w-100">
+                                                {{ manage_form.hidden_tag() }}
+                                                <input type="hidden" name="action" value="demote_member">
+                                                <button type="submit" class="dropdown-item w-100 text-start">
+                                                    <i class="bi bi-arrow-down text-secondary me-1"></i>Demote to Member
+                                                </button>
+                                            </form>
+                                        </li>
+                                        {% endif %}
+                                    {% elif membership.role == 'admin' and group.created_by == current_user.id and user.id != current_user.id %}
+                                        <li>
+                                            <form method="POST" 
+                                                  action="{{ url_for('groups.manage_member', group_id=group.id, user_id=user.id) }}"
+                                                  class="d-inline w-100">
+                                                {{ manage_form.hidden_tag() }}
+                                                <input type="hidden" name="action" value="demote_member">
+                                                <button type="submit" class="dropdown-item w-100 text-start"
+                                                        onclick="return confirm('Are you sure you want to demote this admin?')">
+                                                    <i class="bi bi-arrow-down text-secondary me-1"></i>Demote to Member
+                                                </button>
+                                            </form>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    <!-- Remove Option -->
+                                    {% if user.id != group.created_by %}
+                                        {% if (user_membership.role == 'admin' or group.created_by == current_user.id) and membership.role != 'admin' %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <form method="POST" 
+                                                  action="{{ url_for('groups.manage_member', group_id=group.id, user_id=user.id) }}"
+                                                  class="d-inline w-100">
+                                                {{ manage_form.hidden_tag() }}
+                                                <input type="hidden" name="action" value="remove">
+                                                <button type="submit" class="dropdown-item text-danger w-100 text-start"
+                                                        onclick="return confirm('Are you sure you want to remove this member?')">
+                                                    <i class="bi bi-person-dash me-1"></i>Remove from Group
+                                                </button>
+                                            </form>
+                                        </li>
+                                        {% elif user_membership.role == 'moderator' and membership.role == 'member' %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <form method="POST" 
+                                                  action="{{ url_for('groups.manage_member', group_id=group.id, user_id=user.id) }}"
+                                                  class="d-inline w-100">
+                                                {{ manage_form.hidden_tag() }}
+                                                <input type="hidden" name="action" value="remove">
+                                                <button type="submit" class="dropdown-item text-danger w-100 text-start"
+                                                        onclick="return confirm('Are you sure you want to remove this member?')">
+                                                    <i class="bi bi-person-dash me-1"></i>Remove from Group
+                                                </button>
+                                            </form>
+                                        </li>
+                                        {% endif %}
+                                    {% endif %}
+                                {% else %}
+                                    <li><span class="dropdown-item-text text-muted">No actions available</span></li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                        {% else %}
+                        <!-- Debug info for current user -->
+                        <div class="small text-muted">
+                            Your role: {{ user_membership.role if user_membership else 'Not a member' }}
+                            {% if group.created_by == current_user.id %}
+                            | Creator
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if user.id == current_user.id %}
+                        <span class="badge bg-light text-dark">You</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Role Legend -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="bi bi-info-circle me-2"></i>Role Permissions
+                </h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge bg-warning text-dark me-2">
+                                <i class="bi bi-star-fill"></i> Creator
+                            </span>
+                            <span>Full control, cannot be removed</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge bg-primary me-2">Admin</span>
+                            <span>Manage settings, promote/demote members</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge bg-info me-2">Moderator</span>
+                            <span>Remove regular members, moderate content</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-secondary me-2">Member</span>
+                            <span>Participate in group activities</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.member-row:hover {
+    background-color: var(--bs-light);
+}
+
+.member-avatar {
+    transition: transform 0.2s;
+}
+
+.member-avatar:hover {
+    transform: scale(1.05);
+}
+
+.dropdown-item:hover {
+    background-color: var(--bs-light);
+}
+
+.dropdown-item.text-danger:hover {
+    background-color: var(--bs-danger);
+    color: white !important;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+/* Fix dropdown form styling */
+.dropdown-menu form {
+    margin: 0;
+}
+
+.dropdown-menu .dropdown-item {
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    padding: 0.375rem 1rem;
+}
+
+.dropdown-menu .dropdown-item:hover {
+    background-color: var(--bs-gray-100);
+}
+
+.dropdown-menu .dropdown-item.text-danger:hover {
+    background-color: var(--bs-danger);
+    color: white !important;
+}
+
+/* Ensure dropdown shows above other content */
+.dropdown-menu {
+    z-index: 1050 !important;
+    position: absolute !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid rgba(0, 0, 0, 0.125) !important;
+    background-color: white !important;
+}
+
+/* Fix container overflow issues */
+.card-body {
+    overflow: visible !important;
+}
+
+/* Ensure dropdown container doesn't clip */
+.dropdown {
+    position: relative;
+    z-index: 10;
+}
+
+/* Fix any border radius issues with cards */
+.border-bottom:last-child {
+    border-bottom: none !important;
+}
+
+/* Ensure proper stacking context */
+.d-flex.align-items-center.p-3.border-bottom {
+    position: relative;
+    z-index: 1;
+}
+
+.d-flex.align-items-center.p-3.border-bottom:hover {
+    z-index: 2;
+}
+
+/* Specific fix for member rows */
+.member-row {
+    position: relative !important;
+    z-index: 1;
+}
+
+.member-row:hover {
+    z-index: 10 !important;
+    background-color: var(--bs-gray-50);
+}
+
+/* Ensure dropdown appears above all card content */
+.member-row .dropdown-menu {
+    z-index: 1060 !important;
+}
+
+/* Override any Bootstrap card overflow settings */
+.card {
+    overflow: visible !important;
+}
+
+.card-body {
+    overflow: visible !important;
+    position: relative;
+}
+
+/* Ensure the dropdown doesn't get cut off */
+.dropdown-menu-end {
+    right: 0 !important;
+    left: auto !important;
+}
+
+/* Fix for dropdown being covered by next row */
+.member-row.dropdown-open {
+    z-index: 1050 !important;
+}
+
+.member-row.dropdown-open ~ .member-row {
+    z-index: 1 !important;
+    position: relative;
+}
+
+/* Ensure dropdown has enough space */
+.dropdown-menu {
+    margin-top: 0.125rem !important;
+}
+
+/* Prevent subsequent rows from overlapping dropdown */
+.member-row:has(.dropdown-menu.show) {
+    z-index: 1050 !important;
+}
+
+.member-row:has(.dropdown-menu.show) ~ .member-row {
+    z-index: 1 !important;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Fix dropdown positioning issues
+    const dropdownButtons = document.querySelectorAll('[data-bs-toggle="dropdown"]');
+    
+    dropdownButtons.forEach(button => {
+        button.addEventListener('show.bs.dropdown', function(event) {
+            // Reset all rows first
+            document.querySelectorAll('.member-row').forEach(row => {
+                row.classList.remove('dropdown-open');
+                row.style.zIndex = '1';
+            });
+            
+            // Get the dropdown menu and parent row
+            const dropdownMenu = this.nextElementSibling;
+            const parentRow = this.closest('.member-row');
+            
+            if (parentRow) {
+                // Mark this row as having an open dropdown
+                parentRow.classList.add('dropdown-open');
+                parentRow.style.zIndex = '1050';
+                
+                // Lower z-index for all subsequent rows
+                let nextSibling = parentRow.nextElementSibling;
+                while (nextSibling) {
+                    if (nextSibling.classList.contains('member-row')) {
+                        nextSibling.style.zIndex = '1';
+                    }
+                    nextSibling = nextSibling.nextElementSibling;
+                }
+            }
+            
+            // Ensure dropdown has highest z-index
+            dropdownMenu.style.zIndex = '1060';
+            dropdownMenu.style.position = 'absolute';
+        });
+        
+        button.addEventListener('hide.bs.dropdown', function(event) {
+            // Reset all rows when dropdown closes
+            document.querySelectorAll('.member-row').forEach(row => {
+                row.classList.remove('dropdown-open');
+                row.style.zIndex = '1';
+            });
+        });
+    });
+    
+    // Ensure dropdowns don't interfere with each other
+    document.addEventListener('click', function(event) {
+        if (!event.target.closest('.dropdown')) {
+            // Reset all member row z-indexes and classes when clicking outside
+            document.querySelectorAll('.member-row').forEach(row => {
+                row.classList.remove('dropdown-open');
+                row.style.zIndex = '1';
+            });
+        }
+    });
+    
+    // Handle escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            document.querySelectorAll('.member-row').forEach(row => {
+                row.classList.remove('dropdown-open');
+                row.style.zIndex = '1';
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -39,6 +39,9 @@ def create_app(config_name=None):
     from routes.auth import auth as auth_blueprint
     app.register_blueprint(auth_blueprint, url_prefix='/auth')
     
+    from routes.groups import groups as groups_blueprint
+    app.register_blueprint(groups_blueprint)
+    
     # Error handlers
     from routes.errors import errors as errors_blueprint
     app.register_blueprint(errors_blueprint)

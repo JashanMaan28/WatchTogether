@@ -302,3 +302,112 @@ class UserSearchForm(FlaskForm):
         Length(min=2, max=50, message='Search term must be between 2-50 characters')
     ])
     submit = SubmitField('Search')
+
+class CreateGroupForm(FlaskForm):
+    """Form for creating a new group"""
+    name = StringField('Group Name', validators=[
+        DataRequired(message='Group name is required'),
+        Length(min=3, max=100, message='Group name must be between 3-100 characters')
+    ])
+    description = TextAreaField('Description', validators=[
+        Optional(),
+        Length(max=500, message='Description must be less than 500 characters')
+    ])
+    privacy_level = SelectField('Privacy Level', choices=[
+        ('public', 'Public - Anyone can find and join'),
+        ('invite_only', 'Invite Only - Members can invite others'),
+        ('private', 'Private - Admin approval required')
+    ], default='public', validators=[DataRequired()])
+    max_members = SelectField('Maximum Members', choices=[
+        (10, '10 members'),
+        (25, '25 members'),
+        (50, '50 members'),
+        (100, '100 members'),
+        (250, '250 members')
+    ], coerce=int, default=50, validators=[DataRequired()])
+    allow_member_invites = BooleanField('Allow members to invite others', default=True)
+    auto_accept_requests = BooleanField('Automatically accept join requests', default=False)
+    submit = SubmitField('Create Group')
+    
+    def validate_name(self, field):
+        from models import Group
+        is_valid, message = Group.validate_group_name(field.data)
+        if not is_valid:
+            raise ValidationError(message)
+
+class EditGroupForm(FlaskForm):
+    """Form for editing group settings"""
+    name = StringField('Group Name', validators=[
+        DataRequired(message='Group name is required'),
+        Length(min=3, max=100, message='Group name must be between 3-100 characters')
+    ])
+    description = TextAreaField('Description', validators=[
+        Optional(),
+        Length(max=500, message='Description must be less than 500 characters')
+    ])
+    privacy_level = SelectField('Privacy Level', choices=[
+        ('public', 'Public - Anyone can find and join'),
+        ('invite_only', 'Invite Only - Members can invite others'),
+        ('private', 'Private - Admin approval required')
+    ], validators=[DataRequired()])
+    max_members = SelectField('Maximum Members', choices=[
+        (10, '10 members'),
+        (25, '25 members'),
+        (50, '50 members'),
+        (100, '100 members'),
+        (250, '250 members')
+    ], coerce=int, validators=[DataRequired()])
+    allow_member_invites = BooleanField('Allow members to invite others')
+    auto_accept_requests = BooleanField('Automatically accept join requests')
+    submit = SubmitField('Update Group')
+    
+    def __init__(self, group_id=None, *args, **kwargs):
+        super(EditGroupForm, self).__init__(*args, **kwargs)
+        self.group_id = group_id
+    
+    def validate_name(self, field):
+        from models import Group
+        is_valid, message = Group.validate_group_name(field.data, self.group_id)
+        if not is_valid:
+            raise ValidationError(message)
+
+class JoinGroupForm(FlaskForm):
+    """Form for joining a group"""
+    submit = SubmitField('Join Group')
+
+class LeaveGroupForm(FlaskForm):
+    """Form for leaving a group"""
+    submit = SubmitField('Leave Group')
+
+class SearchGroupsForm(FlaskForm):
+    """Form for searching groups"""
+    search_query = StringField('Search Groups', validators=[
+        Optional(),
+        Length(max=50, message='Search term must be less than 50 characters')
+    ])
+    submit = SubmitField('Search')
+
+class ManageMemberForm(FlaskForm):
+    """Form for managing group members"""
+    action = SelectField('Action', choices=[
+        ('promote_admin', 'Promote to Admin'),
+        ('promote_moderator', 'Promote to Moderator'),
+        ('demote_member', 'Demote to Member'),
+        ('remove', 'Remove from Group')
+    ], validators=[DataRequired()])
+    submit = SubmitField('Apply Action')
+
+class DeleteGroupForm(FlaskForm):
+    """Form for deleting a group"""
+    confirm_name = StringField('Type group name to confirm deletion', validators=[
+        DataRequired(message='Please type the group name to confirm deletion')
+    ])
+    submit = SubmitField('Delete Group')
+    
+    def __init__(self, group_name=None, *args, **kwargs):
+        super(DeleteGroupForm, self).__init__(*args, **kwargs)
+        self.group_name = group_name
+    
+    def validate_confirm_name(self, field):
+        if self.group_name and field.data != self.group_name:
+            raise ValidationError('Group name does not match')

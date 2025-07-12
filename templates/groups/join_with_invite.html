@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Join Group with Invite - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center">
+                <div class="mb-4">
+                    <i class="bi bi-ticket-detailed display-3 text-primary"></i>
+                </div>
+                
+                <h3 class="card-title">Join Group with Invite Code</h3>
+                <p class="text-muted mb-4">
+                    Enter your invite code to join a private group
+                </p>
+                
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.invite_code.label(class="form-label") }}
+                        {{ form.invite_code(class="form-control form-control-lg text-center", placeholder="Enter invite code...") }}
+                        {% if form.invite_code.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.invite_code.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            Invite codes are usually 8 characters long and case-sensitive
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                        <a href="{{ url_for('groups.discover') }}" class="btn btn-outline-secondary">
+                            Browse Public Groups Instead
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Help Section -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="bi bi-question-circle me-2"></i>Need Help?
+                </h6>
+                <div class="row">
+                    <div class="col-md-12">
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="bi bi-check-circle text-success me-2"></i>
+                                Ask the person who invited you for the correct code
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-check-circle text-success me-2"></i>
+                                Make sure you're entering the code exactly as provided
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-check-circle text-success me-2"></i>
+                                Check if the invite code has expired or reached its usage limit
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-info-circle text-primary me-2"></i>
+                                If you don't have an invite code, try browsing our public groups
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-control-lg {
+    font-size: 1.25rem;
+    letter-spacing: 0.1em;
+    font-family: 'Courier New', monospace;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.display-3 {
+    font-size: 4rem;
+}
+
+.list-unstyled li {
+    display: flex;
+    align-items: flex-start;
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.125rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus on invite code input
+    const inviteCodeInput = document.querySelector('input[name="invite_code"]');
+    if (inviteCodeInput) {
+        inviteCodeInput.focus();
+    }
+    
+    // Auto-uppercase invite codes as user types
+    inviteCodeInput.addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+    
+    // Handle paste events to clean up invite codes
+    inviteCodeInput.addEventListener('paste', function(e) {
+        setTimeout(() => {
+            let value = this.value.toUpperCase();
+            // Remove any non-alphanumeric characters
+            value = value.replace(/[^A-Z0-9]/g, '');
+            this.value = value;
+        }, 10);
+    });
+});
+</script>
+{% endblock %}

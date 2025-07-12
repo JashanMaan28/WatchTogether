@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}My Groups - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="bi bi-collection me-2"></i>My Groups</h1>
+            <a href="{{ url_for('groups.create_group') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Create New Group
+            </a>
+        </div>
+
+        <!-- Admin/Creator Groups -->
+        {% if admin_groups %}
+        <div class="mb-5">
+            <h3 class="mb-3">
+                <i class="bi bi-gear me-2"></i>Groups I Manage
+                <span class="badge bg-primary ms-2">{{ admin_groups|length }}</span>
+            </h3>
+            
+            <div class="row">
+                {% for membership, group in admin_groups %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 group-admin-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title">
+                                    <a href="{{ url_for('groups.view_group', group_id=group.id) }}" 
+                                       class="text-decoration-none">
+                                        {{ group.name }}
+                                    </a>
+                                </h5>
+                                {% if group.created_by == current_user.id %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="bi bi-star-fill"></i> Creator
+                                </span>
+                                {% else %}
+                                <span class="badge bg-primary">Admin</span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if group.description %}
+                            <p class="card-text text-muted">
+                                {{ group.description[:100] }}{% if group.description|length > 100 %}...{% endif %}
+                            </p>
+                            {% endif %}
+                            
+                            <div class="row text-center mb-3">
+                                <div class="col-4">
+                                    <div class="fw-bold">{{ group.get_member_count() }}</div>
+                                    <small class="text-muted">Members</small>
+                                </div>
+                                <div class="col-4">
+                                    <div class="fw-bold">{{ group.privacy_level.replace('_', ' ').title() }}</div>
+                                    <small class="text-muted">Privacy</small>
+                                </div>
+                                <div class="col-4">
+                                    <div class="fw-bold">{{ group.created_at.strftime('%b %Y') }}</div>
+                                    <small class="text-muted">Created</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card-footer bg-transparent">
+                            <div class="btn-group w-100" role="group">
+                                <a href="{{ url_for('groups.view_group', group_id=group.id) }}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                                <a href="{{ url_for('groups.group_members', group_id=group.id) }}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-people"></i> Members
+                                </a>
+                                <a href="{{ url_for('groups.group_settings', group_id=group.id) }}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-gear"></i> Settings
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Member Groups -->
+        {% if member_groups %}
+        <div class="mb-5">
+            <h3 class="mb-3">
+                <i class="bi bi-people me-2"></i>Groups I'm In
+                <span class="badge bg-secondary ms-2">{{ member_groups|length }}</span>
+            </h3>
+            
+            <div class="row">
+                {% for membership, group in member_groups %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 group-member-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title">
+                                    <a href="{{ url_for('groups.view_group', group_id=group.id) }}" 
+                                       class="text-decoration-none">
+                                        {{ group.name }}
+                                    </a>
+                                </h5>
+                                <span class="badge bg-{{ 'info' if membership.role == 'moderator' else 'secondary' }}">
+                                    {{ membership.role.title() }}
+                                </span>
+                            </div>
+                            
+                            {% if group.description %}
+                            <p class="card-text text-muted">
+                                {{ group.description[:100] }}{% if group.description|length > 100 %}...{% endif %}
+                            </p>
+                            {% endif %}
+                            
+                            <div class="row text-center mb-3">
+                                <div class="col-4">
+                                    <div class="fw-bold">{{ group.get_member_count() }}</div>
+                                    <small class="text-muted">Members</small>
+                                </div>
+                                <div class="col-4">
+                                    <div class="fw-bold">{{ group.creator.username }}</div>
+                                    <small class="text-muted">Creator</small>
+                                </div>
+                                <div class="col-4">
+                                    <div class="fw-bold">{{ membership.joined_at.strftime('%b %Y') }}</div>
+                                    <small class="text-muted">Joined</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card-footer bg-transparent">
+                            <div class="btn-group w-100" role="group">
+                                <a href="{{ url_for('groups.view_group', group_id=group.id) }}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                                <a href="{{ url_for('groups.group_members', group_id=group.id) }}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-people"></i> Members
+                                </a>
+                                {% if membership.role in ['moderator'] %}
+                                <button class="btn btn-outline-secondary btn-sm" disabled>
+                                    <i class="bi bi-shield"></i> Moderate
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- No Groups State -->
+        {% if not admin_groups and not member_groups %}
+        <div class="text-center py-5">
+            <i class="bi bi-collection display-1 text-muted"></i>
+            <h3 class="mt-3">You're not in any groups yet</h3>
+            <p class="text-muted mb-4">Join existing groups or create your own to get started!</p>
+            
+            <div class="d-flex justify-content-center gap-2">
+                <a href="{{ url_for('groups.discover_groups') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-search me-1"></i>Discover Groups
+                </a>
+                <a href="{{ url_for('groups.create_group') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i>Create Your First Group
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Quick Stats -->
+        {% if admin_groups or member_groups %}
+        <div class="card mt-4">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="bi bi-graph-up me-2"></i>Your Group Activity
+                </h6>
+                <div class="row text-center">
+                    <div class="col-3">
+                        <div class="fw-bold fs-4">{{ (admin_groups|length) + (member_groups|length) }}</div>
+                        <small class="text-muted">Total Groups</small>
+                    </div>
+                    <div class="col-3">
+                        <div class="fw-bold fs-4">{{ admin_groups|length }}</div>
+                        <small class="text-muted">Managing</small>
+                    </div>
+                    <div class="col-3">
+                        <div class="fw-bold fs-4">{{ member_groups|length }}</div>
+                        <small class="text-muted">Member Of</small>
+                    </div>
+                    <div class="col-3">
+                        <div class="fw-bold fs-4">
+                            {% set total_members = [] %}
+                            {% for membership, group in admin_groups %}
+                                {% if total_members.append(group.get_member_count()) %}{% endif %}
+                            {% endfor %}
+                            {% for membership, group in member_groups %}
+                                {% if total_members.append(group.get_member_count()) %}{% endif %}
+                            {% endfor %}
+                            {{ total_members|sum if total_members else 0 }}
+                        </div>
+                        <small class="text-muted">Total Reach</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.group-admin-card, .group-member-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border-left: 4px solid transparent;
+}
+
+.group-admin-card {
+    border-left-color: var(--bs-primary);
+}
+
+.group-member-card {
+    border-left-color: var(--bs-secondary);
+}
+
+.group-admin-card:hover, .group-member-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.card-title a {
+    color: inherit;
+}
+
+.card-title a:hover {
+    color: var(--bs-primary);
+}
+
+.btn-group .btn {
+    flex: 1;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+</style>
+{% endblock %}

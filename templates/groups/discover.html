@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Discover Groups - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="bi bi-search me-2"></i>Discover Groups</h1>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('groups.create_group') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Create Group
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- Search Form -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <form method="GET" action="{{ url_for('groups.discover_groups') }}">
+                    <div class="input-group">
+                        <input type="text" 
+                               class="form-control" 
+                               name="search" 
+                               placeholder="Search groups by name or description..." 
+                               value="{{ search_query }}">
+                        <button class="btn btn-outline-primary" type="submit">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="col-md-6 text-end">
+                {% if search_query %}
+                <a href="{{ url_for('groups.discover_groups') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle me-1"></i>Clear Search
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Groups Grid -->
+        {% if groups %}
+        <div class="row">
+            {% for group in groups %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 group-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title">
+                                <a href="{{ url_for('groups.view_group', group_id=group.id) }}" 
+                                   class="text-decoration-none">
+                                    {{ group.name }}
+                                </a>
+                            </h5>
+                            <span class="badge bg-{{ 'success' if group.privacy_level == 'public' else 'warning' if group.privacy_level == 'invite_only' else 'secondary' }}">
+                                {{ group.privacy_level.replace('_', ' ').title() }}
+                            </span>
+                        </div>
+                        
+                        {% if group.description %}
+                        <p class="card-text text-muted">
+                            {{ group.description[:120] }}{% if group.description|length > 120 %}...{% endif %}
+                        </p>
+                        {% endif %}
+                        
+                        <div class="row text-center mb-3">
+                            <div class="col-6">
+                                <small class="text-muted">Members</small>
+                                <div class="fw-bold">{{ group.get_member_count() }}</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Created</small>
+                                <div class="fw-bold">{{ group.created_at.strftime('%b %Y') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-footer bg-transparent">
+                        {% if current_user.is_authenticated %}
+                            {% if group.id in user_groups %}
+                                <button class="btn btn-success btn-sm w-100" disabled>
+                                    <i class="bi bi-check-circle me-1"></i>Member
+                                </button>
+                            {% else %}
+                                <a href="{{ url_for('groups.view_group', group_id=group.id) }}" 
+                                   class="btn btn-primary btn-sm w-100">
+                                    <i class="bi bi-eye me-1"></i>View Group
+                                </a>
+                            {% endif %}
+                        {% else %}
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-sm w-100">
+                                Login to Join
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if pagination.pages > 1 %}
+        <nav aria-label="Groups pagination" class="mt-4">
+            <ul class="pagination justify-content-center">
+                <!-- Previous page -->
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('groups.discover_groups', page=pagination.prev_num, search=search_query) }}">
+                        <i class="bi bi-chevron-left"></i> Previous
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">
+                        <i class="bi bi-chevron-left"></i> Previous
+                    </span>
+                </li>
+                {% endif %}
+
+                <!-- Page numbers -->
+                {% for page_num in pagination.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != pagination.page %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('groups.discover_groups', page=page_num, search=search_query) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                <!-- Next page -->
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('groups.discover_groups', page=pagination.next_num, search=search_query) }}">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <!-- No Groups Found -->
+        <div class="text-center py-5">
+            <i class="bi bi-collection display-1 text-muted"></i>
+            <h3 class="mt-3">No Groups Found</h3>
+            {% if search_query %}
+            <p class="text-muted">No groups match your search criteria. Try a different search term.</p>
+            <a href="{{ url_for('groups.discover_groups') }}" class="btn btn-outline-primary">
+                View All Groups
+            </a>
+            {% else %}
+            <p class="text-muted">There are no public groups yet.</p>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('groups.create_group') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Create the First Group
+            </a>
+            {% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.card-title a {
+    color: inherit;
+}
+
+.card-title a:hover {
+    color: var(--bs-primary);
+}
+</style>
+{% endblock %}

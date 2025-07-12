@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}{{ group.name }} - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Group Header -->
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-center mb-2">
+                            <h1 class="mb-0 me-3">{{ group.name }}</h1>
+                            <span class="badge bg-{{ 'success' if group.privacy_level == 'public' else 'warning' if group.privacy_level == 'invite_only' else 'secondary' }} fs-6">
+                                {{ group.privacy_level.replace('_', ' ').title() }}
+                            </span>
+                        </div>
+                        
+                        {% if group.description %}
+                        <p class="text-muted mb-3">{{ group.description }}</p>
+                        {% endif %}
+                        
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="fw-bold">{{ group.get_member_count() }}</div>
+                                <small class="text-muted">Members</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="fw-bold">{{ group.created_at.strftime('%b %d, %Y') }}</div>
+                                <small class="text-muted">Created</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="fw-bold">{{ group.creator.username }}</div>
+                                <small class="text-muted">Creator</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 text-end">
+                        {% if current_user.is_authenticated %}
+                            {% if user_membership %}
+                                <!-- User is a member -->
+                                <div class="mb-2">
+                                    <span class="badge bg-primary fs-6">
+                                        {{ user_membership.role.title() }}
+                                    </span>
+                                </div>
+                                
+                                {% if user_membership.role in ['admin'] or group.created_by == current_user.id %}
+                                <a href="{{ url_for('groups.group_settings', group_id=group.id) }}" 
+                                   class="btn btn-outline-primary btn-sm me-2">
+                                    <i class="bi bi-gear"></i> Settings
+                                </a>
+                                {% endif %}
+                                
+                                <a href="{{ url_for('groups.group_members', group_id=group.id) }}" 
+                                   class="btn btn-outline-primary btn-sm me-2">
+                                    <i class="bi bi-people"></i> Members
+                                </a>
+                                
+                                {% if group.created_by != current_user.id %}
+                                <form method="POST" action="{{ url_for('groups.leave_group', group_id=group.id) }}" 
+                                      class="d-inline" onsubmit="return confirm('Are you sure you want to leave this group?');">
+                                    {{ leave_form.hidden_tag() }}
+                                    {{ leave_form.submit(class="btn btn-outline-danger btn-sm") }}
+                                </form>
+                                {% endif %}
+                            {% elif can_join %}
+                                <!-- User can join -->
+                                <form method="POST" action="{{ url_for('groups.join_group', group_id=group.id) }}" class="d-inline">
+                                    {{ join_form.hidden_tag() }}
+                                    {{ join_form.submit(class="btn btn-success") }}
+                                </form>
+                            {% else %}
+                                <!-- User cannot join -->
+                                <button class="btn btn-secondary" disabled>
+                                    <i class="bi bi-lock"></i> Cannot Join
+                                </button>
+                            {% endif %}
+                        {% else %}
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-primary">
+                                Login to Join
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Group Content -->
+    <div class="col-md-8">
+        <!-- Group Activity/Content would go here -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-chat-dots me-2"></i>Group Activity
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center py-5">
+                    <i class="bi bi-chat-dots display-1 text-muted"></i>
+                    <h5 class="mt-3">No Activity Yet</h5>
+                    <p class="text-muted">Group activity and discussions will appear here.</p>
+                    {% if user_membership %}
+                    <button class="btn btn-outline-primary" disabled>
+                        <i class="bi bi-plus-circle me-1"></i>Start a Discussion
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-md-4">
+        <!-- Recent Members -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-people me-2"></i>Recent Members
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if members[:5] %}
+                    {% for membership, user in members[:5] %}
+                    <div class="d-flex align-items-center mb-2">
+                        <img src="{{ user.get_profile_picture_url() }}" 
+                             alt="{{ user.username }}" 
+                             class="rounded-circle me-2" 
+                             width="32" height="32">
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">{{ user.username }}</div>
+                            <small class="text-muted">
+                                {{ membership.role.title() }}
+                                {% if group.created_by == user.id %}
+                                <i class="bi bi-star-fill text-warning" title="Creator"></i>
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if members|length > 5 %}
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('groups.group_members', group_id=group.id) }}" 
+                           class="btn btn-outline-primary btn-sm">
+                            View All {{ group.get_member_count() }} Members
+                        </a>
+                    </div>
+                    {% endif %}
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="bi bi-people text-muted"></i>
+                    <p class="text-muted mb-0">No members yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Group Info -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-info-circle me-2"></i>Group Info
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="fw-bold">{{ group.privacy_level.replace('_', ' ').title() }}</div>
+                        <small class="text-muted">Privacy</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="fw-bold">{{ group.max_members }}</div>
+                        <small class="text-muted">Max Members</small>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="small">
+                    {% if group.allow_member_invites %}
+                    <div class="text-success mb-1">
+                        <i class="bi bi-check-circle me-1"></i>Members can invite others
+                    </div>
+                    {% endif %}
+                    
+                    {% if group.auto_accept_requests %}
+                    <div class="text-success mb-1">
+                        <i class="bi bi-check-circle me-1"></i>Auto-accept join requests
+                    </div>
+                    {% endif %}
+                    
+                    <div class="text-muted">
+                        Created {{ group.created_at.strftime('%B %d, %Y') }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.card-title {
+    font-size: 1rem;
+}
+
+.badge.fs-6 {
+    font-size: 0.875rem !important;
+}
+
+.member-avatar {
+    transition: transform 0.2s;
+}
+
+.member-avatar:hover {
+    transform: scale(1.1);
+}
+</style>
+{% endblock %}

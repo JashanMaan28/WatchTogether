@@ -33,6 +33,24 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.index') }}">Home</a>
                     </li>
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            Groups
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('groups.discover_groups') }}">
+                                <i class="bi bi-search"></i> Discover Groups
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('groups.my_groups') }}">
+                                <i class="bi bi-collection"></i> My Groups
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('groups.create_group') }}">
+                                <i class="bi bi-plus-circle"></i> Create Group
+                            </a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.about') }}">About</a>
                     </li>

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Create Group - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">
+                    <i class="bi bi-plus-circle me-2"></i>Create New Group
+                </h3>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Group Name -->
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                        {% if form.name.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.name.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">Choose a unique and descriptive name for your group.</div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="3", placeholder="Tell people what your group is about...") }}
+                        {% if form.description.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.description.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">Optional description to help others understand your group's purpose.</div>
+                    </div>
+
+                    <!-- Privacy Level -->
+                    <div class="mb-3">
+                        {{ form.privacy_level.label(class="form-label") }}
+                        {{ form.privacy_level(class="form-select" + (" is-invalid" if form.privacy_level.errors else "")) }}
+                        {% if form.privacy_level.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.privacy_level.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            <strong>Public:</strong> Anyone can find and join your group.<br>
+                            <strong>Invite Only:</strong> Members can invite others, but the group won't appear in public searches.<br>
+                            <strong>Private:</strong> Only admins can add members, and all join requests require approval.
+                        </div>
+                    </div>
+
+                    <!-- Maximum Members -->
+                    <div class="mb-3">
+                        {{ form.max_members.label(class="form-label") }}
+                        {{ form.max_members(class="form-select" + (" is-invalid" if form.max_members.errors else "")) }}
+                        {% if form.max_members.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.max_members.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">Set the maximum number of members allowed in your group.</div>
+                    </div>
+
+                    <!-- Group Settings -->
+                    <div class="mb-3">
+                        <label class="form-label">Group Permissions</label>
+                        
+                        <div class="form-check">
+                            {{ form.allow_member_invites(class="form-check-input") }}
+                            {{ form.allow_member_invites.label(class="form-check-label") }}
+                            <div class="form-text">Allow regular members to invite their friends to the group.</div>
+                        </div>
+                        
+                        <div class="form-check mt-2">
+                            {{ form.auto_accept_requests(class="form-check-input") }}
+                            {{ form.auto_accept_requests.label(class="form-check-label") }}
+                            <div class="form-text">Automatically accept join requests without admin approval.</div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('groups.discover_groups') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle me-1"></i>Cancel
+                        </a>
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Info Card -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="bi bi-info-circle me-1"></i>Group Creation Tips
+                </h6>
+                <ul class="list-unstyled mb-0">
+                    <li><i class="bi bi-check-circle text-success me-1"></i>Choose a clear, descriptive name</li>
+                    <li><i class="bi bi-check-circle text-success me-1"></i>Write a helpful description</li>
+                    <li><i class="bi bi-check-circle text-success me-1"></i>Set appropriate privacy settings</li>
+                    <li><i class="bi bi-check-circle text-success me-1"></i>Consider your target audience size</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update privacy level help text based on selection
+    const privacySelect = document.getElementById('privacy_level');
+    const autoAcceptCheck = document.getElementById('auto_accept_requests');
+    const autoAcceptContainer = autoAcceptCheck.closest('.form-check');
+    
+    function updateAutoAcceptVisibility() {
+        if (privacySelect.value === 'private') {
+            autoAcceptContainer.style.display = 'none';
+            autoAcceptCheck.checked = false;
+        } else {
+            autoAcceptContainer.style.display = 'block';
+        }
+    }
+    
+    privacySelect.addEventListener('change', updateAutoAcceptVisibility);
+    updateAutoAcceptVisibility(); // Run on page load
+});
+</script>
+{% endblock %}

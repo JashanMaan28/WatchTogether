@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}{{ group.name }} Settings - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">
+                    <i class="bi bi-gear me-2"></i>Group Settings
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Group Name -->
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                        {% if form.name.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.name.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="3") }}
+                        {% if form.description.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.description.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Privacy Level -->
+                    <div class="mb-3">
+                        {{ form.privacy_level.label(class="form-label") }}
+                        {{ form.privacy_level(class="form-select" + (" is-invalid" if form.privacy_level.errors else "")) }}
+                        {% if form.privacy_level.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.privacy_level.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            <strong>Warning:</strong> Changing privacy level may affect member access and group visibility.
+                        </div>
+                    </div>
+
+                    <!-- Maximum Members -->
+                    <div class="mb-3">
+                        {{ form.max_members.label(class="form-label") }}
+                        {{ form.max_members(class="form-select" + (" is-invalid" if form.max_members.errors else "")) }}
+                        {% if form.max_members.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.max_members.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            Current members: {{ group.get_member_count() }}
+                        </div>
+                    </div>
+
+                    <!-- Group Permissions -->
+                    <div class="mb-3">
+                        <label class="form-label">Group Permissions</label>
+                        
+                        <div class="form-check">
+                            {{ form.allow_member_invites(class="form-check-input") }}
+                            {{ form.allow_member_invites.label(class="form-check-label") }}
+                        </div>
+                        
+                        <div class="form-check mt-2">
+                            {{ form.auto_accept_requests(class="form-check-input") }}
+                            {{ form.auto_accept_requests.label(class="form-check-label") }}
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('groups.view_group', group_id=group.id) }}" 
+                           class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Back to Group
+                        </a>
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Group Statistics -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-bar-chart me-2"></i>Group Statistics
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="fw-bold fs-4">{{ group.get_member_count() }}</div>
+                        <small class="text-muted">Total Members</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="fw-bold fs-4">{{ group.get_admin_count() }}</div>
+                        <small class="text-muted">Admins</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="small text-muted">
+                    Created on {{ group.created_at.strftime('%B %d, %Y') }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-lightning me-2"></i>Quick Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('groups.group_members', group_id=group.id) }}" 
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-people me-1"></i>Manage Members
+                    </a>
+                    <button class="btn btn-outline-secondary btn-sm" disabled>
+                        <i class="bi bi-link-45deg me-1"></i>Invite Link
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" disabled>
+                        <i class="bi bi-graph-up me-1"></i>View Analytics
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Danger Zone -->
+        {% if group.created_by == current_user.id %}
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Danger Zone
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="text-danger mb-3">
+                    <strong>Delete Group:</strong> This action cannot be undone. All group data will be permanently lost.
+                </p>
+                
+                <button type="button" 
+                        class="btn btn-danger btn-sm" 
+                        data-bs-toggle="modal" 
+                        data-bs-target="#deleteGroupModal">
+                    <i class="bi bi-trash me-1"></i>Delete Group
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Group Modal -->
+{% if group.created_by == current_user.id %}
+<div class="modal fade" id="deleteGroupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Delete Group</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Warning:</strong> This action cannot be undone!
+                </div>
+                
+                <p>You are about to permanently delete the group <strong>"{{ group.name }}"</strong>.</p>
+                <p>This will:</p>
+                <ul>
+                    <li>Remove all {{ group.get_member_count() }} members</li>
+                    <li>Delete all group content and history</li>
+                    <li>Make the group name available for reuse</li>
+                </ul>
+                
+                <form method="POST" action="{{ url_for('groups.delete_group', group_id=group.id) }}">
+                    {{ delete_form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ delete_form.confirm_name.label(class="form-label") }}
+                        {{ delete_form.confirm_name(class="form-control", placeholder=group.name) }}
+                        {% if delete_form.confirm_name.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in delete_form.confirm_name.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                        {{ delete_form.submit(class="btn btn-danger") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-hide auto-accept option for private groups
+    const privacySelect = document.getElementById('privacy_level');
+    const autoAcceptCheck = document.getElementById('auto_accept_requests');
+    const autoAcceptContainer = autoAcceptCheck.closest('.form-check');
+    
+    function updateAutoAcceptVisibility() {
+        if (privacySelect.value === 'private') {
+            autoAcceptContainer.style.display = 'none';
+            autoAcceptCheck.checked = false;
+        } else {
+            autoAcceptContainer.style.display = 'block';
+        }
+    }
+    
+    privacySelect.addEventListener('change', updateAutoAcceptVisibility);
+    updateAutoAcceptVisibility();
+    
+    // Enable delete button only when group name is correctly typed
+    const deleteModal = document.getElementById('deleteGroupModal');
+    if (deleteModal) {
+        const confirmInput = document.getElementById('confirm_name');
+        const deleteButton = document.querySelector('#deleteGroupModal .btn-danger[type="submit"]');
+        const groupName = '{{ group.name }}';
+        
+        function updateDeleteButton() {
+            deleteButton.disabled = confirmInput.value !== groupName;
+        }
+        
+        confirmInput.addEventListener('input', updateDeleteButton);
+        updateDeleteButton();
+    }
+});
+</script>
+{% endblock %}

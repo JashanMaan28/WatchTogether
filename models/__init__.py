@@ -582,3 +582,177 @@ class Notification(db.Model):
             'friend_name': accepter.get_full_name() or accepter.username
         })
         return notification
+
+class Group(db.Model):
+    """Group model for managing watch groups"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, index=True)
+    description = db.Column(db.Text, nullable=True)
+    privacy_level = db.Column(db.String(20), nullable=False, default='public')  # public, private, invite_only
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Group settings
+    max_members = db.Column(db.Integer, default=50)
+    allow_member_invites = db.Column(db.Boolean, default=True)
+    auto_accept_requests = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    creator = db.relationship('User', backref='created_groups')
+    members = db.relationship('GroupMember', back_populates='group', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<Group {self.name}>'
+    
+    def get_member_count(self):
+        """Get the number of members in the group"""
+        return len(self.members)
+    
+    def get_admin_count(self):
+        """Get the number of admins in the group"""
+        return len([m for m in self.members if m.role == 'admin'])
+    
+    def is_member(self, user_id):
+        """Check if a user is a member of the group"""
+        return any(member.user_id == user_id for member in self.members)
+    
+    def get_member_role(self, user_id):
+        """Get a user's role in the group"""
+        member = next((m for m in self.members if m.user_id == user_id), None)
+        return member.role if member else None
+    
+    def can_user_join(self, user_id):
+        """Check if a user can join the group"""
+        if self.is_member(user_id):
+            return False, "Already a member"
+        
+        if self.privacy_level == 'private':
+            return False, "Group is private"
+        
+        if self.get_member_count() >= self.max_members:
+            return False, "Group is full"
+        
+        return True, "Can join"
+    
+    def can_user_edit(self, user_id):
+        """Check if a user can edit group settings"""
+        role = self.get_member_role(user_id)
+        return role in ['admin'] or self.created_by == user_id
+    
+    def can_user_delete(self, user_id):
+        """Check if a user can delete the group"""
+        return self.created_by == user_id
+    
+    def can_user_manage_members(self, user_id):
+        """Check if a user can manage group members"""
+        role = self.get_member_role(user_id)
+        return role in ['admin', 'moderator'] or self.created_by == user_id
+    
+    @staticmethod
+    def search_public_groups(query=None, limit=20):
+        """Search for public groups"""
+        query_filter = Group.privacy_level == 'public'
+        
+        if query:
+            search_pattern = f"%{query}%"
+            query_filter = db.and_(
+                Group.privacy_level == 'public',
+                db.or_(
+                    Group.name.ilike(search_pattern),
+                    Group.description.ilike(search_pattern)
+                )
+            )
+        
+        return Group.query.filter(query_filter).order_by(Group.created_at.desc()).limit(limit).all()
+    
+    @staticmethod
+    def validate_group_name(name, group_id=None):
+        """Validate group name"""
+        if not name or len(name.strip()) < 3:
+            return False, "Group name must be at least 3 characters long"
+        
+        if len(name.strip()) > 100:
+            return False, "Group name must be less than 100 characters"
+        
+        # Check for existing group with same name (case insensitive)
+        existing_query = Group.query.filter(Group.name.ilike(name.strip()))
+        if group_id:
+            existing_query = existing_query.filter(Group.id != group_id)
+        
+        if existing_query.first():
+            return False, "A group with this name already exists"
+        
+        return True, "Valid group name"
+
+class GroupMember(db.Model):
+    """Group membership model"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
+    role = db.Column(db.String(20), nullable=False, default='member')  # admin, moderator, member
+    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='group_memberships')
+    group = db.relationship('Group', back_populates='members')
+    
+    __table_args__ = (db.UniqueConstraint('user_id', 'group_id', name='unique_group_membership'),)
+    
+    def __repr__(self):
+        return f'<GroupMember {self.user.username} in {self.group.name} as {self.role}>'
+    
+    def can_promote_to_admin(self, promoter_user_id):
+        """Check if a user can be promoted to admin by the promoter"""
+        if self.role == 'admin':
+            return False, "User is already an admin"
+        
+        promoter_role = self.group.get_member_role(promoter_user_id)
+        if promoter_role != 'admin' and self.group.created_by != promoter_user_id:
+            return False, "Only admins can promote to admin"
+        
+        return True, "Can promote to admin"
+    
+    def can_demote_from_admin(self, demoter_user_id):
+        """Check if a user can be demoted from admin by the demoter"""
+        if self.role != 'admin':
+            return False, "User is not an admin"
+        
+        if self.group.created_by == self.user_id:
+            return False, "Cannot demote the group creator"
+        
+        if self.group.created_by != demoter_user_id:
+            return False, "Only the group creator can demote admins"
+        
+        # Ensure there will still be at least one admin
+        admin_count = self.group.get_admin_count()
+        if admin_count <= 1:
+            return False, "Cannot demote the last admin"
+        
+        return True, "Can demote from admin"
+    
+    def can_be_removed(self, remover_user_id):
+        """Check if a user can be removed from the group"""
+        remover_role = self.group.get_member_role(remover_user_id)
+        
+        # Group creator can remove anyone except themselves
+        if self.group.created_by == remover_user_id:
+            if self.user_id == remover_user_id:
+                return False, "Group creator cannot leave the group (must delete it instead)"
+            return True, "Creator can remove member"
+        
+        # Admins can remove non-admins
+        if remover_role == 'admin' and self.role != 'admin':
+            return True, "Admin can remove member/moderator"
+        
+        # Moderators can remove regular members
+        if remover_role == 'moderator' and self.role == 'member':
+            return True, "Moderator can remove member"
+        
+        # Users can remove themselves (leave group)
+        if self.user_id == remover_user_id:
+            return True, "User can leave group"
+        
+        return False, "Insufficient permissions to remove member"

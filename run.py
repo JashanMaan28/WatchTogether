@@ -1,5 +1,5 @@
 from app import create_app, db
-from models import User
+from models import User, Group, GroupMember
 import os
 
 # Create Flask application
@@ -10,7 +10,9 @@ app = create_app(os.environ.get('FLASK_ENV', 'development'))
 def make_shell_context():
     return {
         'db': db,
-        'User': User
+        'User': User,
+        'Group': Group,
+        'GroupMember': GroupMember
     }
 
 if __name__ == '__main__':
