@@ -13,14 +13,11 @@ login_manager = LoginManager()
 csrf = CSRFProtect()
 
 def create_app(config_name=None):
-    """Application factory pattern"""
     app = Flask(__name__)
     
-    # Load configuration
     config_name = config_name or os.environ.get('FLASK_ENV', 'default')
     app.config.from_object(config[config_name])
     
-    # Initialize extensions with app
     db.init_app(app)
     login_manager.init_app(app)
     csrf.init_app(app)
@@ -28,14 +25,12 @@ def create_app(config_name=None):
     login_manager.login_message = 'Please log in to access this page.'
     login_manager.login_message_category = 'info'
     
-    # User loader function for Flask-Login
     from models import User
     
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
     
-    # Register blueprints
     from routes.main import main as main_blueprint
     app.register_blueprint(main_blueprint)
     
@@ -56,6 +51,9 @@ def create_app(config_name=None):
     
     from routes.discussions import discussion_bp as discussion_blueprint
     app.register_blueprint(discussion_blueprint)
+    
+    from routes.proposals import proposals_bp as proposals_blueprint
+    app.register_blueprint(proposals_blueprint)
     
     # Custom Jinja2 filters
     @app.template_filter('nl2br')

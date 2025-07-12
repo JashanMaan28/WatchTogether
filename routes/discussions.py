@@ -1,8 +1,3 @@
-"""
-Discussion routes for WatchTogether application
-Handles content and group discussions with threading, moderation, and real-time updates
-"""
-
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, abort
 from flask_login import login_required, current_user
 from sqlalchemy import desc, asc, and_, or_
@@ -16,16 +11,12 @@ from forms import DiscussionForm, ReportDiscussionForm
 
 discussion_bp = Blueprint('discussion', __name__, url_prefix='/discussions')
 
-# Content Discussion Routes
-
 @discussion_bp.route('/content/<int:content_id>')
 @login_required
 def content_discussions(content_id):
-    """Display discussions for a specific content"""
     content = Content.query.get_or_404(content_id)
     
-    # Get sorting parameters
-    sort_by = request.args.get('sort_by', 'recent')  # recent, popular, oldest
+    sort_by = request.args.get('sort_by', 'recent')
     page = request.args.get('page', 1, type=int)
     per_page = 20
     

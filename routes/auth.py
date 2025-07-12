@@ -12,7 +12,6 @@ from datetime import datetime
 auth = Blueprint('auth', __name__)
 
 def save_picture(form_picture):
-    """Save uploaded profile picture with resizing"""
     random_hex = uuid.uuid4().hex
     _, f_ext = os.path.splitext(form_picture.filename)
     picture_fn = random_hex + f_ext
@@ -31,7 +30,6 @@ def save_picture(form_picture):
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
-    """User login page with form validation"""
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
     

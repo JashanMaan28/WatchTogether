@@ -5,23 +5,11 @@ from models import ContentRating, Content, GroupRating, ReviewHelpfulnessVote, R
 from sqlalchemy import and_, desc, func
 from datetime import datetime
 
-# Flash message constants
-INVALID_RATING_MSG = 'Please provide a valid rating between 1 and 5 stars.'
-RATING_UPDATED_MSG = 'Your rating has been updated!'
-RATING_SAVED_MSG = 'Your rating has been saved!'
-RATING_ERROR_MSG = 'An error occurred while saving your rating.'
-RATING_DELETED_MSG = 'Your rating has been deleted.'
-DELETE_ERROR_MSG = 'An error occurred while deleting your rating.'
-PERMISSION_ERROR_MSG = 'You can only edit your own ratings.'
-DELETE_PERMISSION_ERROR_MSG = 'You can only delete your own ratings.'
-GROUP_MEMBER_ERROR_MSG = 'You are not a member of this group.'
-
 ratings_bp = Blueprint('ratings', __name__)
 
 @ratings_bp.route('/content/<int:content_id>/rate', methods=['GET', 'POST'])
 @login_required
 def rate_content(content_id):
-    """Rate and review content"""
     content = Content.query.get_or_404(content_id)
     existing_rating = ContentRating.query.filter_by(
         user_id=current_user.id,
@@ -36,7 +24,7 @@ def rate_content(content_id):
         
         # Validate rating
         if not rating_value or rating_value < 1 or rating_value > 5:
-            flash(INVALID_RATING_MSG, 'error')
+            flash('Please provide a valid rating between 1 and 5 stars.', 'error')
             return redirect(url_for('ratings.rate_content', content_id=content_id))
         
         try:
@@ -47,7 +35,7 @@ def rate_content(content_id):
                 existing_rating.is_spoiler = is_spoiler
                 existing_rating.is_public = is_public
                 existing_rating.updated_at = datetime.utcnow()
-                flash(RATING_UPDATED_MSG, 'success')
+                flash('Your rating has been updated!', 'success')
             else:
                 # Create new rating
                 new_rating = ContentRating(
@@ -59,7 +47,7 @@ def rate_content(content_id):
                     is_public=is_public
                 )
                 db.session.add(new_rating)
-                flash(RATING_SAVED_MSG, 'success')
+                flash('Your rating has been saved!', 'success')
             
             db.session.commit()
             
@@ -73,7 +61,7 @@ def rate_content(content_id):
             
         except Exception as e:
             db.session.rollback()
-            flash(RATING_ERROR_MSG, 'error')
+            flash('An error occurred while saving your rating.', 'error')
             return redirect(url_for('ratings.rate_content', content_id=content_id))
     
     return render_template('ratings/rate_content.html', 
@@ -136,7 +124,7 @@ def edit_rating(rating_id):
     rating = ContentRating.query.get_or_404(rating_id)
     
     if not rating.can_edit(current_user):
-        flash(PERMISSION_ERROR_MSG, 'error')
+        flash('You can only edit your own ratings.', 'error')
         return redirect(url_for('content.detail', tmdb_id=rating.content_ref.tmdb_id, content_type=rating.content_ref.type))
     
     if request.method == 'POST':
@@ -146,7 +134,7 @@ def edit_rating(rating_id):
         is_public = bool(request.form.get('is_public', True))
         
         if not rating_value or rating_value < 1 or rating_value > 5:
-            flash(INVALID_RATING_MSG, 'error')
+            flash('Please provide a valid rating between 1 and 5 stars.', 'error')
             return render_template('ratings/edit_rating.html', rating=rating)
         
         try:
@@ -164,7 +152,7 @@ def edit_rating(rating_id):
             # Update group ratings
             update_group_ratings_for_content(rating.content_id, current_user.id)
             
-            flash(RATING_UPDATED_MSG, 'success')
+            flash('Your rating has been updated!', 'success')
             return redirect(url_for('content.detail', tmdb_id=rating.content_ref.tmdb_id, content_type=rating.content_ref.type))
             
         except Exception as e:
@@ -180,7 +168,7 @@ def delete_rating(rating_id):
     rating = ContentRating.query.get_or_404(rating_id)
     
     if not rating.can_edit(current_user):
-        flash(DELETE_PERMISSION_ERROR_MSG, 'error')
+        flash('You can only delete your own ratings.', 'error')
         return redirect(url_for('content.detail', tmdb_id=rating.content_ref.tmdb_id, content_type=rating.content_ref.type))
     
     try:
@@ -195,11 +183,11 @@ def delete_rating(rating_id):
         # Update group ratings
         update_group_ratings_for_content(content_id, current_user.id)
         
-        flash(RATING_DELETED_MSG, 'success')
+        flash('Your rating has been deleted.', 'success')
         
     except Exception as e:
         db.session.rollback()
-        flash(DELETE_ERROR_MSG, 'error')
+        flash('An error occurred while deleting your rating.', 'error')
     
     return redirect(url_for('content.detail', tmdb_id=content.tmdb_id, content_type=content.type))
 
@@ -277,7 +265,7 @@ def view_group_rating(group_id, content_id):
     ).first()
     
     if not membership:
-        flash(GROUP_MEMBER_ERROR_MSG, 'error')
+        flash('You are not a member of this group.', 'error')
         return redirect(url_for('groups.view', group_id=group_id))
     
     # Get or create group rating

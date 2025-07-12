@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}My Proposals{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2>My Proposals</h2>
+                    <p class="text-muted">All content proposals you've submitted</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('groups.discover_groups') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-plus"></i> Create New Proposal
+                    </a>
+                </div>
+            </div>
+
+            {% if proposals.items %}
+                <!-- Proposals List -->
+                <div class="row">
+                    {% for proposal in proposals.items %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100 {% if proposal.is_featured %}border-warning{% endif %}">
+                            {% if proposal.is_featured %}
+                            <div class="card-header bg-warning text-dark py-1">
+                                <small><i class="fas fa-star"></i> Featured</small>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="card-body">
+                                <!-- Status and Group -->
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge 
+                                        {% if proposal.status == 'pending' %}bg-warning
+                                        {% elif proposal.status == 'approved' %}bg-success
+                                        {% elif proposal.status == 'rejected' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ proposal.status.title() }}
+                                    </span>
+                                    <small class="text-muted">{{ proposal.priority.title() }}</small>
+                                </div>
+
+                                <!-- Group Name -->
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-users"></i>
+                                        <a href="{{ url_for('groups.view_group', group_id=proposal.group.id) }}" class="text-decoration-none">
+                                            {{ proposal.group.name }}
+                                        </a>
+                                    </small>
+                                </div>
+
+                                <!-- Content Title -->
+                                <h6 class="card-title">
+                                    <a href="{{ url_for('proposals.view_proposal', proposal_id=proposal.id) }}" class="text-decoration-none">
+                                        {{ proposal.get_content_title() }}
+                                    </a>
+                                </h6>
+
+                                <!-- Content Details -->
+                                <p class="text-muted small mb-2">
+                                    {% if proposal.content_type %}
+                                        {{ proposal.content_type.replace('_', ' ').title() }}
+                                    {% endif %}
+                                    {% if proposal.release_year %}
+                                        ({{ proposal.release_year }})
+                                    {% endif %}
+                                </p>
+
+                                <!-- Reason (truncated) -->
+                                <p class="card-text small">
+                                    {{ proposal.reason[:80] }}{% if proposal.reason|length > 80 %}...{% endif %}
+                                </p>
+
+                                <!-- Voting Stats -->
+                                <div class="row text-center mb-2">
+                                    <div class="col-4">
+                                        <div class="text-success">
+                                            <i class="fas fa-thumbs-up"></i>
+                                            <span>{{ proposal.upvotes }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-danger">
+                                            <i class="fas fa-thumbs-down"></i>
+                                            <span>{{ proposal.downvotes }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-info">
+                                            <small>{{ "%.0f"|format(proposal.get_approval_rate()) }}%</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Created Date -->
+                                <div class="text-center">
+                                    <small class="text-muted">
+                                        Created {{ proposal.created_at.strftime('%m/%d/%y') }}
+                                    </small>
+                                </div>
+
+                                {% if proposal.proposed_watch_date %}
+                                <div class="text-center mt-1">
+                                    <small class="text-info">
+                                        <i class="fas fa-calendar"></i>
+                                        {{ proposal.proposed_watch_date.strftime('%m/%d/%y') }}
+                                    </small>
+                                </div>
+                                {% endif %}
+
+                                <!-- Status Messages -->
+                                {% if proposal.status == 'pending' %}
+                                    {% if proposal.expires_at %}
+                                        <div class="mt-2">
+                                            <small class="text-warning">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                                Expires: {{ proposal.expires_at.strftime('%b %d, %Y') }}
+                                            </small>
+                                        </div>
+                                    {% endif %}
+                                {% elif proposal.status == 'approved' %}
+                                    {% if proposal.approved_at %}
+                                    <div class="mt-2">
+                                        <small class="text-success">
+                                            <i class="fas fa-check"></i>
+                                            Approved {{ proposal.approved_at.strftime('%m/%d/%y') }}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+
+                            <div class="card-footer bg-transparent">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <a href="{{ url_for('proposals.view_proposal', proposal_id=proposal.id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            View Details
+                                        </a>
+                                        
+                                        {% if proposal.can_user_edit(current_user.id) %}
+                                        <a href="{{ url_for('proposals.edit_proposal', proposal_id=proposal.id) }}" 
+                                           class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if proposal.can_user_delete(current_user.id) %}
+                                    <form method="POST" action="{{ url_for('proposals.delete_proposal', proposal_id=proposal.id) }}" 
+                                          class="d-inline" onsubmit="return confirm('Are you sure you want to delete this proposal?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if proposals.pages > 1 %}
+                <nav aria-label="My proposals pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if proposals.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('proposals.my_proposals', page=proposals.prev_num) }}">Previous</a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in proposals.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != proposals.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('proposals.my_proposals', page=page_num) }}">{{ page_num }}</a>
+                                </li>
+                                {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if proposals.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('proposals.my_proposals', page=proposals.next_num) }}">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+            {% else %}
+                <!-- Empty State -->
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <i class="fas fa-lightbulb fa-3x text-muted"></i>
+                    </div>
+                    <h4>No Proposals Yet</h4>
+                    <p class="text-muted">You haven't created any content proposals yet.</p>
+                    <a href="{{ url_for('groups.discover_groups') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create Your First Proposal
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s;
+}
+.card:hover {
+    transform: translateY(-2px);
+}
+.badge {
+    font-size: 0.75em;
+}
+</style>
+{% endblock %}

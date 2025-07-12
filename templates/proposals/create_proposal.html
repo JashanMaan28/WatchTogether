@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+{% block title %}Create Proposal - {{ group.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Header -->
+            <div class="mb-4">
+                <h2>Create Content Proposal</h2>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('groups.discover_groups') }}">Groups</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('groups.view_group', group_id=group.id) }}">{{ group.name }}</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('proposals.group_proposals', group_id=group.id) }}">Proposals</a></li>
+                        <li class="breadcrumb-item active">Create</li>
+                    </ol>
+                </nav>
+            </div>
+
+            <form method="POST" class="needs-validation" novalidate>
+                {{ form.hidden_tag() }}
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Content Selection</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Content Type Choice -->
+                        <div class="mb-3">
+                            {{ form.content_type_choice.label(class="form-label") }}
+                            {{ form.content_type_choice(class="form-select", id="content-type-choice") }}
+                            {% for error in form.content_type_choice.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Existing Content Section -->
+                        <div id="existing-content-section" style="display: none;">
+                            <div class="mb-3">
+                                {{ form.existing_content_id.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.existing_content_id(class="form-control", readonly=True) }}
+                                    <button type="button" class="btn btn-outline-secondary" id="browse-content">
+                                        Browse Content
+                                    </button>
+                                </div>
+                                {% for error in form.existing_content_id.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                                <div class="form-text">Search and select existing content from our database.</div>
+                            </div>
+                        </div>
+
+                        <!-- New Content Section -->
+                        <div id="new-content-section">
+                            <div class="row">
+                                <div class="col-md-8 mb-3">
+                                    {{ form.title.label(class="form-label required") }}
+                                    {{ form.title(class="form-control", placeholder="Enter the title of the content") }}
+                                    {% for error in form.title.errors %}
+                                        <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.content_type.label(class="form-label required") }}
+                                    {{ form.content_type(class="form-select") }}
+                                    {% for error in form.content_type.errors %}
+                                        <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    {{ form.release_year.label(class="form-label") }}
+                                    {{ form.release_year(class="form-control", placeholder="2024") }}
+                                    {% for error in form.release_year.errors %}
+                                        <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="col-md-8 mb-3">
+                                    {{ form.genre.label(class="form-label") }}
+                                    {{ form.genre(class="form-control", placeholder="Action, Comedy, Drama, etc.") }}
+                                    {% for error in form.genre.errors %}
+                                        <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                {{ form.description.label(class="form-label") }}
+                                {{ form.description(class="form-control", rows="3", placeholder="Brief description of the content...") }}
+                                {% for error in form.description.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-8 mb-3">
+                                    {{ form.external_id.label(class="form-label") }}
+                                    {{ form.external_id(class="form-control", placeholder="e.g., tt1234567 (IMDB) or 12345 (TMDB)") }}
+                                    {% for error in form.external_id.errors %}
+                                        <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.external_source.label(class="form-label") }}
+                                    {{ form.external_source(class="form-select") }}
+                                    {% for error in form.external_source.errors %}
+                                        <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Proposal Details -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Proposal Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.reason.label(class="form-label required") }}
+                            {{ form.reason(class="form-control", rows="4") }}
+                            {% for error in form.reason.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">Explain why your group should watch this content. What makes it interesting or relevant?</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.priority.label(class="form-label") }}
+                                {{ form.priority(class="form-select") }}
+                                {% for error in form.priority.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.proposed_watch_date.label(class="form-label") }}
+                                {{ form.proposed_watch_date(class="form-control") }}
+                                {% for error in form.proposed_watch_date.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                                <div class="form-text">Optional: When would you like the group to watch this?</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Voting Settings -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Voting Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.required_votes.label(class="form-label") }}
+                                {{ form.required_votes(class="form-control") }}
+                                {% for error in form.required_votes.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                                <div class="form-text">Minimum number of votes needed for approval consideration.</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.approval_threshold.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.approval_threshold(class="form-control") }}
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                {% for error in form.approval_threshold.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                                <div class="form-text">Percentage of positive votes needed for approval.</div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>How Voting Works:</strong> Your proposal will automatically be approved when it receives the minimum number of votes and meets the approval threshold. Group members will have 30 days to vote.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{{ url_for('proposals.group_proposals', group_id=group.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Cancel
+                    </a>
+                    {{ form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Content Browser Modal -->
+<div class="modal fade" id="contentBrowserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Browse Content</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="content-search" placeholder="Search for movies, TV shows, etc.">
+                </div>
+                <div id="content-results">
+                    <!-- Search results will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const contentTypeChoice = document.getElementById('content-type-choice');
+    const existingContentSection = document.getElementById('existing-content-section');
+    const newContentSection = document.getElementById('new-content-section');
+    const browseContentBtn = document.getElementById('browse-content');
+    const contentBrowserModal = new bootstrap.Modal(document.getElementById('contentBrowserModal'));
+
+    // Toggle content sections based on choice
+    function toggleContentSections() {
+        if (contentTypeChoice.value === 'existing') {
+            existingContentSection.style.display = 'block';
+            newContentSection.style.display = 'none';
+            // Make existing content fields required
+            document.getElementById('existing_content_id').required = true;
+            // Remove required from new content fields
+            document.querySelector('[name="title"]').required = false;
+            document.querySelector('[name="content_type"]').required = false;
+        } else {
+            existingContentSection.style.display = 'none';
+            newContentSection.style.display = 'block';
+            // Make new content fields required
+            document.querySelector('[name="title"]').required = true;
+            document.querySelector('[name="content_type"]').required = true;
+            // Remove required from existing content fields
+            document.getElementById('existing_content_id').required = false;
+        }
+    }
+
+    contentTypeChoice.addEventListener('change', toggleContentSections);
+    toggleContentSections(); // Initial setup
+
+    // Content browser functionality
+    browseContentBtn.addEventListener('click', function() {
+        contentBrowserModal.show();
+        loadContent(''); // Load initial content
+    });
+
+    // Content search
+    const contentSearch = document.getElementById('content-search');
+    let searchTimeout;
+
+    contentSearch.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            loadContent(this.value);
+        }, 300);
+    });
+
+    function loadContent(query) {
+        const resultsDiv = document.getElementById('content-results');
+        resultsDiv.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"></div></div>';
+
+        // This would typically make an AJAX call to search content
+        // For now, show a placeholder
+        setTimeout(() => {
+            resultsDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Content search functionality would be implemented here. 
+                    This would search your existing content database and allow selection.
+                </div>
+                <div class="list-group">
+                    <div class="list-group-item list-group-item-action" onclick="selectContent(1, 'Sample Movie (2024)')">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Sample Movie</h6>
+                            <small>2024</small>
+                        </div>
+                        <p class="mb-1">Movie • Action, Adventure</p>
+                        <small>Sample movie for demonstration</small>
+                    </div>
+                </div>
+            `;
+        }, 500);
+    }
+
+    // Global function to select content
+    window.selectContent = function(id, title) {
+        document.getElementById('existing_content_id').value = id;
+        contentBrowserModal.hide();
+        
+        // Show selected content
+        const button = document.getElementById('browse-content');
+        button.textContent = title;
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-success');
+    };
+
+    // Form validation
+    const form = document.querySelector('.needs-validation');
+    form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+    });
+});
+</script>
+
+<style>
+.required::after {
+    content: " *";
+    color: red;
+}
+.card {
+    border: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+}
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+</style>
+{% endblock %}

@@ -6,8 +6,6 @@ import re
 import json
 
 class User(UserMixin, db.Model):
-    """User model for authentication and user management"""
-    
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
@@ -17,27 +15,23 @@ class User(UserMixin, db.Model):
     bio = db.Column(db.Text, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     
-    # profile fields
     first_name = db.Column(db.String(50), nullable=True)
     last_name = db.Column(db.String(50), nullable=True)
     location = db.Column(db.String(100), nullable=True)
     date_of_birth = db.Column(db.Date, nullable=True)
-    favorite_genres = db.Column(db.Text, nullable=True)  # JSON string
-    content_types = db.Column(db.Text, nullable=True)    # JSON string
-    viewing_habits = db.Column(db.Text, nullable=True)   # JSON string
+    favorite_genres = db.Column(db.Text, nullable=True)
+    content_types = db.Column(db.Text, nullable=True)
+    viewing_habits = db.Column(db.Text, nullable=True)
     
-    # Privacy settings
     is_profile_public = db.Column(db.Boolean, default=True)
     show_email = db.Column(db.Boolean, default=False)
     show_location = db.Column(db.Boolean, default=True)
     show_age = db.Column(db.Boolean, default=False)
     allow_friend_requests = db.Column(db.Boolean, default=True)
     
-    # Social features
     website_url = db.Column(db.String(200), nullable=True)
-    social_links = db.Column(db.Text, nullable=True)  # JSON string
+    social_links = db.Column(db.Text, nullable=True)
     
-    # Activity tracking
     last_login = db.Column(db.DateTime, nullable=True)
     login_count = db.Column(db.Integer, default=0)
     
@@ -45,16 +39,12 @@ class User(UserMixin, db.Model):
         return f'<User {self.username}>'
     
     def set_password(self, password):
-        """Hash and set the user's password"""
         self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
-        """Check if the provided password matches the user's password"""
         return check_password_hash(self.password_hash, password)
     
-    # Profile data helpers
     def get_favorite_genres(self):
-        """Get favorite genres as a list"""
         if self.favorite_genres:
             try:
                 return json.loads(self.favorite_genres)
@@ -63,14 +53,12 @@ class User(UserMixin, db.Model):
         return []
     
     def set_favorite_genres(self, genres_list):
-        """Set favorite genres from a list"""
         if genres_list:
             self.favorite_genres = json.dumps(genres_list)
         else:
             self.favorite_genres = None
     
     def get_content_types(self):
-        """Get preferred content types as a list"""
         if self.content_types:
             try:
                 return json.loads(self.content_types)
@@ -79,14 +67,12 @@ class User(UserMixin, db.Model):
         return []
     
     def set_content_types(self, types_list):
-        """Set content types from a list"""
         if types_list:
             self.content_types = json.dumps(types_list)
         else:
             self.content_types = None
     
     def get_viewing_habits(self):
-        """Get viewing habits as a dictionary"""
         if self.viewing_habits:
             try:
                 return json.loads(self.viewing_habits)
@@ -95,7 +81,6 @@ class User(UserMixin, db.Model):
         return {}
     
     def set_viewing_habits(self, habits_dict):
-        """Set viewing habits from a dictionary"""
         if habits_dict:
             self.viewing_habits = json.dumps(habits_dict)
         else:
@@ -1776,5 +1761,455 @@ class DiscussionSearch(db.Model):
         discussion_ids = [result.discussion_id for result in search_results]
         return Discussion.query.filter(
             Discussion.id.in_(discussion_ids),
-            Discussion.is_hidden == False
-        ).order_by(Discussion.created_at.desc()).all()
+            Discussion.is_hidden == False        ).order_by(Discussion.created_at.desc()).all()
+
+
+class ContentProposal(db.Model):
+    """Content proposal model for group voting"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
+    proposer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    content_id = db.Column(db.Integer, db.ForeignKey('content.id'), nullable=True)  # For existing content
+    
+    # Content details for new content proposals
+    title = db.Column(db.String(200), nullable=True)
+    content_type = db.Column(db.String(50), nullable=True)  # movie, tv_show, documentary, etc.
+    release_year = db.Column(db.Integer, nullable=True)
+    genre = db.Column(db.String(100), nullable=True)
+    description = db.Column(db.Text, nullable=True)
+    external_id = db.Column(db.String(100), nullable=True)  # TMDB ID, IMDB ID, etc.
+    external_source = db.Column(db.String(50), nullable=True)  # tmdb, imdb, etc.
+    
+    # Proposal details
+    reason = db.Column(db.Text, nullable=False)
+    priority = db.Column(db.String(20), default='medium')  # high, medium, low
+    proposed_watch_date = db.Column(db.DateTime, nullable=True)
+    
+    # Status tracking
+    status = db.Column(db.String(20), default='pending')  # pending, approved, rejected, expired
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=True)  # Auto-expiry for pending proposals
+    approved_at = db.Column(db.DateTime, nullable=True)
+    approved_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    
+    # Voting thresholds and counts
+    upvotes = db.Column(db.Integer, default=0)
+    downvotes = db.Column(db.Integer, default=0)
+    required_votes = db.Column(db.Integer, default=3)  # Minimum votes needed for approval
+    approval_threshold = db.Column(db.Float, default=0.6)  # 60% approval rate needed
+    
+    # Additional metadata
+    is_featured = db.Column(db.Boolean, default=False)  # Featured proposals
+    admin_notes = db.Column(db.Text, nullable=True)  # Admin comments
+    discussion_id = db.Column(db.Integer, db.ForeignKey('discussion.id'), nullable=True)  # Optional discussion thread
+    
+    # Relationships
+    group = db.relationship('Group', backref='content_proposals')
+    proposer = db.relationship('User', foreign_keys=[proposer_id], backref='proposed_content')
+    approved_by_user = db.relationship('User', foreign_keys=[approved_by], backref='approved_proposals')
+    content = db.relationship('Content', backref='proposals')
+    votes = db.relationship('ProposalVote', backref='proposal', cascade='all, delete-orphan')
+    discussion = db.relationship('Discussion', foreign_keys=[discussion_id], uselist=False, backref='content_proposal')
+    
+    def __repr__(self):
+        return f'<ContentProposal {self.id}: {self.title or self.content.title if self.content else "New Content"}>'
+    
+    def get_vote_score(self):
+        """Calculate net vote score"""
+        return self.upvotes - self.downvotes
+    
+    def get_approval_rate(self):
+        """Calculate approval rate as percentage"""
+        total_votes = self.upvotes + self.downvotes
+        if total_votes == 0:
+            return 0
+        return (self.upvotes / total_votes) * 100
+    
+    def is_eligible_for_approval(self):
+        """Check if proposal meets voting thresholds for approval"""
+        total_votes = self.upvotes + self.downvotes
+        if total_votes < self.required_votes:
+            return False, f"Needs {self.required_votes - total_votes} more votes"
+        
+        approval_rate = self.get_approval_rate() / 100
+        if approval_rate < self.approval_threshold:
+            return False, f"Needs {self.approval_threshold * 100}% approval rate (currently {approval_rate * 100:.1f}%)"
+        
+        return True, "Eligible for approval"
+    
+    def can_user_vote(self, user_id):
+        """Check if user can vote on this proposal"""
+        if self.status != 'pending':
+            return False, "Proposal is no longer accepting votes"
+        
+        if self.proposer_id == user_id:
+            return False, "Cannot vote on your own proposal"
+        
+        # Check if user is group member
+        member = GroupMember.query.filter_by(group_id=self.group_id, user_id=user_id).first()
+        if not member:
+            return False, "Must be a group member to vote"
+        
+        # Check if user already voted
+        existing_vote = ProposalVote.query.filter_by(proposal_id=self.id, user_id=user_id).first()
+        if existing_vote:
+            return False, "Already voted on this proposal"
+        
+        return True, "Can vote"
+    
+    def get_user_vote(self, user_id):
+        """Get user's vote on this proposal"""
+        return ProposalVote.query.filter_by(proposal_id=self.id, user_id=user_id).first()
+    
+    def update_vote_counts(self):
+        """Recalculate vote counts from actual votes"""
+        votes = ProposalVote.query.filter_by(proposal_id=self.id).all()
+        self.upvotes = len([v for v in votes if v.vote_type == 'upvote'])
+        self.downvotes = len([v for v in votes if v.vote_type == 'downvote'])
+        db.session.commit()
+    
+    def auto_approve_if_eligible(self):
+        """Automatically approve proposal if it meets thresholds"""
+        if self.status != 'pending':
+            return False
+        
+        eligible, message = self.is_eligible_for_approval()
+        if eligible:
+            self.status = 'approved'
+            self.approved_at = datetime.utcnow()
+            
+            # Create content record if this is a new content proposal
+            if not self.content_id and self.title:
+                from models import Content  # Avoid circular import
+                new_content = Content(
+                    title=self.title,
+                    content_type=self.content_type,
+                    release_year=self.release_year,
+                    genre=self.genre,
+                    description=self.description,
+                    external_id=self.external_id,
+                    external_source=self.external_source,
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(new_content)
+                db.session.flush()  # Get ID
+                self.content_id = new_content.id
+            
+            db.session.commit()
+            return True
+        
+        return False
+    
+    def can_user_edit(self, user_id):
+        """Check if user can edit this proposal"""
+        if self.proposer_id == user_id and self.status == 'pending':
+            return True
+        
+        # Group admins can edit any proposal
+        member = GroupMember.query.filter_by(group_id=self.group_id, user_id=user_id).first()
+        if member and member.role == 'admin':
+            return True
+        
+        return False
+    
+    def can_user_delete(self, user_id):
+        """Check if user can delete this proposal"""
+        if self.proposer_id == user_id and self.status == 'pending':
+            return True
+        
+        # Group admins and moderators can delete proposals
+        member = GroupMember.query.filter_by(group_id=self.group_id, user_id=user_id).first()
+        if member and member.role in ['admin', 'moderator']:
+            return True
+        
+        return False
+    
+    def get_content_title(self):
+        """Get the title of the proposed content"""
+        if self.content:
+            return self.content.title
+        return self.title or "Unknown Content"
+    
+    def is_expired(self):
+        """Check if proposal has expired"""
+        if self.expires_at and datetime.utcnow() > self.expires_at:
+            return True
+        return False
+    
+    def expire_proposal(self):
+        """Mark proposal as expired"""
+        if self.status == 'pending' and self.is_expired():
+            self.status = 'expired'
+            db.session.commit()
+    
+    @staticmethod
+    def get_group_proposals(group_id, status=None, limit=50):
+        """Get proposals for a specific group"""
+        query = ContentProposal.query.filter_by(group_id=group_id)
+        
+        if status:
+            query = query.filter_by(status=status)
+        
+        return query.order_by(ContentProposal.created_at.desc()).limit(limit).all()
+    
+    @staticmethod
+    def get_user_proposals(user_id, limit=50):
+        """Get proposals created by a specific user"""
+        return ContentProposal.query.filter_by(proposer_id=user_id).order_by(
+            ContentProposal.created_at.desc()
+        ).limit(limit).all()
+    
+    def to_dict(self):
+        """Convert proposal to dictionary for JSON responses"""
+        return {
+            'id': self.id,
+            'group_id': self.group_id,
+            'group_name': self.group.name,
+            'proposer': {
+                'id': self.proposer_id,
+                'username': self.proposer.username
+            },
+            'content_title': self.get_content_title(),
+            'content_type': self.content_type,
+            'reason': self.reason,
+            'priority': self.priority,
+            'status': self.status,
+            'upvotes': self.upvotes,
+            'downvotes': self.downvotes,
+            'approval_rate': self.get_approval_rate(),
+            'created_at': self.created_at.isoformat(),
+            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+            'is_expired': self.is_expired()
+        }
+
+
+class ProposalVote(db.Model):
+    """Voting model for content proposals"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('content_proposal.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    vote_type = db.Column(db.String(10), nullable=False)  # upvote, downvote
+    comment = db.Column(db.Text, nullable=True)  # Optional comment with vote
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='proposal_votes')
+    
+    # Unique constraint
+    __table_args__ = (db.UniqueConstraint('proposal_id', 'user_id', name='unique_proposal_vote'),)
+    
+    def __repr__(self):
+        return f'<ProposalVote {self.user.username} {self.vote_type}s proposal {self.proposal_id}>'
+    
+    @staticmethod
+    def cast_vote(proposal_id, user_id, vote_type, comment=None):
+        """Cast or update a vote on a proposal"""
+        # Check if user already voted
+        existing_vote = ProposalVote.query.filter_by(
+            proposal_id=proposal_id, 
+            user_id=user_id
+        ).first()
+        
+        if existing_vote:
+            # Update existing vote
+            existing_vote.vote_type = vote_type
+            existing_vote.comment = comment
+            existing_vote.updated_at = datetime.utcnow()
+        else:
+            # Create new vote
+            new_vote = ProposalVote(
+                proposal_id=proposal_id,
+                user_id=user_id,
+                vote_type=vote_type,
+                comment=comment
+            )
+            db.session.add(new_vote)
+        
+        db.session.commit()
+        
+        # Update proposal vote counts
+        proposal = ContentProposal.query.get(proposal_id)
+        if proposal:
+            proposal.update_vote_counts()
+            
+            # Check for auto-approval
+            proposal.auto_approve_if_eligible()
+        
+        return True
+    
+    def can_user_edit(self, user_id):
+        """Check if user can edit this vote"""
+        return self.user_id == user_id
+    
+    def to_dict(self):
+        """Convert vote to dictionary for JSON responses"""
+        return {
+            'id': self.id,
+            'proposal_id': self.proposal_id,
+            'user': {
+                'id': self.user_id,
+                'username': self.user.username
+            },
+            'vote_type': self.vote_type,
+            'comment': self.comment,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
+        }
+
+
+class ProposalAnalytics(db.Model):
+    """Analytics tracking for proposal system"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
+    
+    # Counts for different time periods
+    total_proposals = db.Column(db.Integer, default=0)
+    approved_proposals = db.Column(db.Integer, default=0)
+    rejected_proposals = db.Column(db.Integer, default=0)
+    pending_proposals = db.Column(db.Integer, default=0)
+    expired_proposals = db.Column(db.Integer, default=0)
+    
+    # Voting statistics
+    total_votes_cast = db.Column(db.Integer, default=0)
+    average_participation_rate = db.Column(db.Float, default=0.0)
+    average_approval_time = db.Column(db.Float, default=0.0)  # Hours
+    
+    # Top contributors
+    most_active_proposer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    most_active_voter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    
+    # Time period tracking
+    period_type = db.Column(db.String(20), default='monthly')  # daily, weekly, monthly, yearly
+    period_start = db.Column(db.DateTime, nullable=False)
+    period_end = db.Column(db.DateTime, nullable=False)
+    
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    group = db.relationship('Group', backref='proposal_analytics')
+    most_active_proposer = db.relationship('User', foreign_keys=[most_active_proposer_id])
+    most_active_voter = db.relationship('User', foreign_keys=[most_active_voter_id])
+    
+    def __repr__(self):
+        return f'<ProposalAnalytics Group {self.group_id} {self.period_type} {self.period_start}>'
+    
+    @staticmethod
+    def update_analytics(group_id, period_type='monthly'):
+        """Update analytics for a group"""
+        from datetime import datetime, timedelta
+        
+        # Calculate period boundaries
+        now = datetime.utcnow()
+        if period_type == 'daily':
+            period_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            period_end = period_start + timedelta(days=1)
+        elif period_type == 'weekly':
+            period_start = now - timedelta(days=now.weekday())
+            period_start = period_start.replace(hour=0, minute=0, second=0, microsecond=0)
+            period_end = period_start + timedelta(days=7)
+        elif period_type == 'monthly':
+            period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            next_month = period_start.replace(month=period_start.month + 1) if period_start.month < 12 else period_start.replace(year=period_start.year + 1, month=1)
+            period_end = next_month
+        else:  # yearly
+            period_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            period_end = period_start.replace(year=period_start.year + 1)
+        
+        # Get or create analytics record
+        analytics = ProposalAnalytics.query.filter_by(
+            group_id=group_id,
+            period_type=period_type,
+            period_start=period_start
+        ).first()
+        
+        if not analytics:
+            analytics = ProposalAnalytics(
+                group_id=group_id,
+                period_type=period_type,
+                period_start=period_start,
+                period_end=period_end
+            )
+            db.session.add(analytics)
+        
+        # Calculate metrics
+        proposals = ContentProposal.query.filter(
+            ContentProposal.group_id == group_id,
+            ContentProposal.created_at >= period_start,
+            ContentProposal.created_at < period_end
+        ).all()
+        
+        analytics.total_proposals = len(proposals)
+        analytics.approved_proposals = len([p for p in proposals if p.status == 'approved'])
+        analytics.rejected_proposals = len([p for p in proposals if p.status == 'rejected'])
+        analytics.pending_proposals = len([p for p in proposals if p.status == 'pending'])
+        analytics.expired_proposals = len([p for p in proposals if p.status == 'expired'])
+        
+        # Vote statistics
+        votes = ProposalVote.query.join(ContentProposal).filter(
+            ContentProposal.group_id == group_id,
+            ProposalVote.created_at >= period_start,
+            ProposalVote.created_at < period_end
+        ).all()
+        
+        analytics.total_votes_cast = len(votes)
+        
+        # Calculate participation rate
+        group_members = GroupMember.query.filter_by(group_id=group_id).count()
+        if group_members > 0 and analytics.total_proposals > 0:
+            unique_voters = len(set(vote.user_id for vote in votes))
+            analytics.average_participation_rate = (unique_voters / group_members) * 100
+        
+        # Calculate average approval time
+        approved_proposals = [p for p in proposals if p.approved_at]
+        if approved_proposals:
+            total_hours = sum(
+                (p.approved_at - p.created_at).total_seconds() / 3600 
+                for p in approved_proposals
+            )
+            analytics.average_approval_time = total_hours / len(approved_proposals)
+        
+        # Find most active users
+        proposer_counts = {}
+        voter_counts = {}
+        
+        for proposal in proposals:
+            proposer_counts[proposal.proposer_id] = proposer_counts.get(proposal.proposer_id, 0) + 1
+        
+        for vote in votes:
+            voter_counts[vote.user_id] = voter_counts.get(vote.user_id, 0) + 1
+        
+        if proposer_counts:
+            analytics.most_active_proposer_id = max(proposer_counts, key=proposer_counts.get)
+        
+        if voter_counts:
+            analytics.most_active_voter_id = max(voter_counts, key=voter_counts.get)
+        
+        analytics.last_updated = datetime.utcnow()
+        db.session.commit()
+        
+        return analytics
+    
+    def to_dict(self):
+        """Convert analytics to dictionary for JSON responses"""
+        return {
+            'group_id': self.group_id,
+            'period_type': self.period_type,
+            'period_start': self.period_start.isoformat(),
+            'period_end': self.period_end.isoformat(),
+            'total_proposals': self.total_proposals,
+            'approved_proposals': self.approved_proposals,
+            'rejected_proposals': self.rejected_proposals,
+            'pending_proposals': self.pending_proposals,
+            'expired_proposals': self.expired_proposals,
+            'total_votes_cast': self.total_votes_cast,
+            'average_participation_rate': self.average_participation_rate,
+            'average_approval_time': self.average_approval_time,
+            'most_active_proposer': self.most_active_proposer.username if self.most_active_proposer else None,
+            'most_active_voter': self.most_active_voter.username if self.most_active_voter else None,
+            'last_updated': self.last_updated.isoformat()
+        }

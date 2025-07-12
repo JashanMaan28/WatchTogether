@@ -12,36 +12,27 @@ content = Blueprint('content', __name__, url_prefix='/content')
 
 @content.route('/')
 def index():
-    """Content browsing page using TMDB API"""
     try:
-        # Initialize TMDB service
         tmdb = TMDBService()
         
-        # Get search parameters
         search_query = request.args.get('search', '').strip()
-        content_type = request.args.get('type', 'movie')  # movie or tv
+        content_type = request.args.get('type', 'movie')
         page = request.args.get('page', 1, type=int)
         
-        # Get content from TMDB
         if search_query:
-            # Search for specific content
             results = tmdb.search_content(search_query, 'multi', page)
         else:
-            # Get popular content
             results = tmdb.get_popular_content(content_type, page)
         
-        # Transform results for display
         content_items = []
         if results and 'results' in results:
             for item in results['results']:
-                # Determine content type
                 item_type = item.get('media_type', content_type)
                 if item_type == 'tv':
                     item_type = 'tv_show'
                 elif item_type == 'person':
-                    continue  # Skip person results
+                    continue
                 
-                # Get basic info
                 title = item.get('title') or item.get('name', '')
                 release_date = item.get('release_date') or item.get('first_air_date', '')
                 year = None

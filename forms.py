@@ -42,18 +42,14 @@ class RegistrationForm(FlaskForm):
     submit = SubmitField('Create Account')
     
     def validate_username(self, username):
-        """Custom username validation"""
-        # Check format
         if not re.match(r'^[a-zA-Z0-9_]+$', username.data):
             raise ValidationError('Username can only contain letters, numbers, and underscores')
         
-        # Check availability
         user = User.query.filter_by(username=username.data).first()
         if user:
             raise ValidationError('Username is already taken. Please choose a different one.')
     
     def validate_email(self, email):
-        """Custom email validation"""
         user = User.query.filter_by(email=email.data).first()
         if user:
             raise ValidationError('Email is already registered. Please use a different email or login.')
@@ -412,7 +408,7 @@ class DeleteGroupForm(FlaskForm):
         if self.group_name and field.data != self.group_name:
             raise ValidationError('Group name does not match')
 
-# Content Search Forms
+
 
 class ContentSearchForm(FlaskForm):
     """Form for content search and filtering"""
@@ -474,7 +470,7 @@ class TMDBImportForm(FlaskForm):
                               validators=[DataRequired()])
     submit = SubmitField('Import from TMDB')
 
-# Watchlist Forms
+
 
 class AddToWatchlistForm(FlaskForm):
     """Form for adding content to personal watchlist"""
@@ -667,7 +663,7 @@ class WatchlistFilterForm(FlaskForm):
     
     submit = SubmitField('Apply Filters')
 
-# Discussion Forms
+
 
 class DiscussionForm(FlaskForm):
     """Form for creating and editing discussions"""
@@ -709,3 +705,239 @@ class DiscussionSearchForm(FlaskForm):
         'placeholder': 'Search for discussions...'
     })
     submit = SubmitField('Search')
+
+
+
+class ContentProposalForm(FlaskForm):
+    """Form for creating content proposals"""
+    
+    # Content selection (existing or new)
+    content_type_choice = SelectField('Content Type', choices=[
+        ('existing', 'Existing Content'),
+        ('new', 'New Content')
+    ], validators=[DataRequired()])
+    
+    # For existing content
+    existing_content_id = IntegerField('Content ID', validators=[Optional()])
+    
+    # For new content
+    title = StringField('Title', validators=[
+        Optional(),
+        Length(max=200, message='Title must be less than 200 characters')
+    ])
+    content_type = SelectField('Type', choices=[
+        ('movie', 'Movie'),
+        ('tv_show', 'TV Show'),
+        ('documentary', 'Documentary'),
+        ('anime', 'Anime'),
+        ('series', 'Series'),
+        ('mini_series', 'Mini Series'),
+        ('other', 'Other')
+    ], validators=[Optional()])
+    release_year = IntegerField('Release Year', validators=[
+        Optional(),
+        NumberRange(min=1900, max=2030, message='Enter a valid release year')
+    ])
+    genre = StringField('Genre', validators=[
+        Optional(),
+        Length(max=100, message='Genre must be less than 100 characters')
+    ])
+    description = TextAreaField('Description', validators=[
+        Optional(),
+        Length(max=1000, message='Description must be less than 1000 characters')
+    ])
+    external_id = StringField('TMDB/IMDB ID', validators=[
+        Optional(),
+        Length(max=100, message='External ID must be less than 100 characters')
+    ])
+    external_source = SelectField('External Source', choices=[
+        ('tmdb', 'TMDB'),
+        ('imdb', 'IMDB'),
+        ('other', 'Other')
+    ], validators=[Optional()])
+    
+    # Proposal details
+    reason = TextAreaField('Reason for Proposal', validators=[
+        DataRequired(message='Please provide a reason for this proposal'),
+        Length(min=10, max=1000, message='Reason must be between 10-1000 characters')
+    ], render_kw={
+        'placeholder': 'Why should the group watch this content? What makes it interesting or relevant?'
+    })
+    
+    priority = SelectField('Priority', choices=[
+        ('high', 'High - Watch Soon'),
+        ('medium', 'Medium - Normal Priority'),
+        ('low', 'Low - Watch Eventually')
+    ], default='medium', validators=[DataRequired()])
+    
+    proposed_watch_date = DateField('Proposed Watch Date', validators=[Optional()])
+    
+    # Voting settings
+    required_votes = IntegerField('Minimum Votes Required', validators=[
+        NumberRange(min=1, max=50, message='Must be between 1-50 votes'),
+        DataRequired()
+    ], default=3)
+    
+    approval_threshold = FloatField('Approval Threshold (%)', validators=[
+        NumberRange(min=50.0, max=100.0, message='Must be between 50-100%'),
+        DataRequired()
+    ], default=60.0)
+    
+    submit = SubmitField('Submit Proposal')
+    
+    def validate_content_details(self):
+        """Custom validation for content details"""
+        if self.content_type_choice.data == 'existing':
+            if not self.existing_content_id.data:
+                raise ValidationError('Please select existing content or choose "New Content"')
+        else:  # new content
+            if not self.title.data:
+                raise ValidationError('Title is required for new content')
+            if not self.content_type.data:
+                raise ValidationError('Content type is required for new content')
+
+
+class EditProposalForm(FlaskForm):
+    """Form for editing existing proposals"""
+    
+    reason = TextAreaField('Reason for Proposal', validators=[
+        DataRequired(message='Please provide a reason for this proposal'),
+        Length(min=10, max=1000, message='Reason must be between 10-1000 characters')
+    ])
+    
+    priority = SelectField('Priority', choices=[
+        ('high', 'High - Watch Soon'),
+        ('medium', 'Medium - Normal Priority'),
+        ('low', 'Low - Watch Eventually')
+    ], validators=[DataRequired()])
+    
+    proposed_watch_date = DateField('Proposed Watch Date', validators=[Optional()])
+    
+    # Admin-only fields
+    admin_notes = TextAreaField('Admin Notes', validators=[
+        Optional(),
+        Length(max=500, message='Admin notes must be less than 500 characters')
+    ])
+    
+    submit = SubmitField('Update Proposal')
+
+
+class VoteProposalForm(FlaskForm):
+    """Form for voting on proposals"""
+    
+    vote_type = SelectField('Vote', choices=[
+        ('upvote', 'Approve - I want to watch this'),
+        ('downvote', 'Reject - I don\'t want to watch this')
+    ], validators=[DataRequired()])
+    
+    comment = TextAreaField('Comment (Optional)', validators=[
+        Optional(),
+        Length(max=500, message='Comment must be less than 500 characters')
+    ], render_kw={
+        'placeholder': 'Share your thoughts about this proposal...'
+    })
+    
+    submit = SubmitField('Cast Vote')
+
+
+class ProposalFilterForm(FlaskForm):
+    """Form for filtering proposals"""
+    
+    status = SelectField('Status', choices=[
+        ('all', 'All Proposals'),
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('expired', 'Expired')
+    ], default='all')
+    
+    priority = SelectField('Priority', choices=[
+        ('all', 'All Priorities'),
+        ('high', 'High Priority'),
+        ('medium', 'Medium Priority'),
+        ('low', 'Low Priority')
+    ], default='all')
+    
+    content_type = SelectField('Content Type', choices=[
+        ('all', 'All Types'),
+        ('movie', 'Movies'),
+        ('tv_show', 'TV Shows'),
+        ('documentary', 'Documentaries'),
+        ('anime', 'Anime'),
+        ('series', 'Series'),
+        ('other', 'Other')
+    ], default='all')
+    
+    proposer = StringField('Proposed By', validators=[
+        Optional(),
+        Length(max=50, message='Username must be less than 50 characters')
+    ])
+    
+    sort_by = SelectField('Sort By', choices=[
+        ('created_desc', 'Newest First'),
+        ('created_asc', 'Oldest First'),
+        ('votes_desc', 'Most Votes'),
+        ('approval_desc', 'Highest Approval Rate'),
+        ('priority_desc', 'Highest Priority')
+    ], default='created_desc')
+    
+    submit = SubmitField('Apply Filters')
+
+
+class ProposalSearchForm(FlaskForm):
+    """Form for searching proposals"""
+    
+    query = StringField('Search Proposals', validators=[
+        Length(min=1, max=100, message='Search query must be between 1-100 characters')
+    ], render_kw={
+        'placeholder': 'Search by title, description, or proposer...'
+    })
+    
+    submit = SubmitField('Search')
+
+
+class ProposalActionForm(FlaskForm):
+    """Form for admin actions on proposals"""
+    
+    action = SelectField('Action', choices=[
+        ('approve', 'Approve Proposal'),
+        ('reject', 'Reject Proposal'),
+        ('feature', 'Feature Proposal'),
+        ('unfeature', 'Remove Featured Status'),
+        ('extend', 'Extend Voting Period'),
+        ('close', 'Close Voting Early')
+    ], validators=[DataRequired()])
+    
+    admin_notes = TextAreaField('Admin Notes', validators=[
+        Optional(),
+        Length(max=500, message='Admin notes must be less than 500 characters')
+    ])
+    
+    submit = SubmitField('Execute Action')
+
+
+class ProposalSettingsForm(FlaskForm):
+    """Form for group proposal settings"""
+    
+    auto_approval_enabled = BooleanField('Enable Automatic Approval')
+    
+    default_required_votes = IntegerField('Default Minimum Votes', validators=[
+        NumberRange(min=1, max=50, message='Must be between 1-50 votes'),
+        DataRequired()
+    ], default=3)
+    
+    default_approval_threshold = FloatField('Default Approval Threshold (%)', validators=[
+        NumberRange(min=50.0, max=100.0, message='Must be between 50-100%'),
+        DataRequired()
+    ], default=60.0)
+    
+    proposal_expiry_days = IntegerField('Proposal Expiry (Days)', validators=[
+        NumberRange(min=1, max=365, message='Must be between 1-365 days'),
+        DataRequired()
+    ], default=30)
+    
+    allow_member_proposals = BooleanField('Allow All Members to Create Proposals', default=True)
+    
+    require_admin_approval = BooleanField('Require Admin Approval for New Proposals')
+    
+    submit = SubmitField('Update Settings')

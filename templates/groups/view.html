@@ -64,6 +64,11 @@
                                     <i class="fas fa-comments"></i> Discussions
                                 </a>
                                 
+                                <a href="{{ url_for('proposals.group_proposals', group_id=group.id) }}" 
+                                   class="btn btn-outline-warning btn-sm me-2">
+                                    <i class="fas fa-lightbulb"></i> Proposals
+                                </a>
+                                
                                 <a href="{{ url_for('watchlist.group_watchlist', group_id=group.id) }}" 
                                    class="btn btn-outline-info btn-sm me-2">
                                     <i class="fas fa-list"></i> Watchlist

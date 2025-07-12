@@ -1,5 +1,3 @@
-// WatchTogether JavaScript Functions
-
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
 });

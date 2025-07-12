@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Invite Management - {{ group.name }} - WatchTogether{% endblock %}
-
-{% block content %}
+{% block title %}Invite Management - {{ group.name }} - WatchTogether{% endblock %}                                    {% if invite.expires_at %}
+                                        <span class="text-muted">
+                                            {{ invite.expires_at.strftime('%b %d, %Y') }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">No expiry</span>
+                                    {% endif %} content %}
 <div class="row">
     <div class="col-12">
         <!-- Header -->

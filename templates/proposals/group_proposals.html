@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% block title %}Group Proposals - {{ group.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2>Content Proposals</h2>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('groups.discover_groups') }}">Groups</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('groups.view_group', group_id=group.id) }}">{{ group.name }}</a></li>
+                            <li class="breadcrumb-item active">Proposals</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{{ url_for('proposals.create_proposal', group_id=group.id) }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> New Proposal
+                    </a>
+                    {% if group.get_member_role(current_user.id) in ['admin', 'moderator'] %}
+                    <a href="{{ url_for('proposals.proposal_analytics', group_id=group.id) }}" class="btn btn-outline-info">
+                        <i class="fas fa-chart-bar"></i> Analytics
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Filters and Search -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <form method="GET" class="row g-3">
+                                <div class="col-md-2">
+                                    {{ filter_form.status.label(class="form-label") }}
+                                    {{ filter_form.status(class="form-select form-select-sm") }}
+                                </div>
+                                <div class="col-md-2">
+                                    {{ filter_form.priority.label(class="form-label") }}
+                                    {{ filter_form.priority(class="form-select form-select-sm") }}
+                                </div>
+                                <div class="col-md-2">
+                                    {{ filter_form.content_type.label(class="form-label") }}
+                                    {{ filter_form.content_type(class="form-select form-select-sm") }}
+                                </div>
+                                <div class="col-md-2">
+                                    {{ filter_form.proposer.label(class="form-label") }}
+                                    {{ filter_form.proposer(class="form-control form-control-sm", placeholder="Username") }}
+                                </div>
+                                <div class="col-md-2">
+                                    {{ filter_form.sort_by.label(class="form-label") }}
+                                    {{ filter_form.sort_by(class="form-select form-select-sm") }}
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="submit" class="btn btn-outline-primary btn-sm d-block">Apply</button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="col-md-4">
+                            <form method="GET" class="d-flex">
+                                {{ search_form.query(class="form-control form-control-sm me-2") }}
+                                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Proposals List -->
+            {% if proposals.items %}
+                <div class="row">
+                    {% for proposal in proposals.items %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100 {% if proposal.is_featured %}border-warning{% endif %}">
+                            {% if proposal.is_featured %}
+                            <div class="card-header bg-warning text-dark py-1">
+                                <small><i class="fas fa-star"></i> Featured Proposal</small>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="card-body">
+                                <!-- Status Badge -->
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge 
+                                        {% if proposal.status == 'pending' %}bg-warning
+                                        {% elif proposal.status == 'approved' %}bg-success
+                                        {% elif proposal.status == 'rejected' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ proposal.status.title() }}
+                                    </span>
+                                    <small class="text-muted">{{ proposal.priority.title() }}</small>
+                                </div>
+
+                                <!-- Content Title -->
+                                <h6 class="card-title">
+                                    <a href="{{ url_for('proposals.view_proposal', proposal_id=proposal.id) }}" class="text-decoration-none">
+                                        {{ proposal.get_content_title() }}
+                                    </a>
+                                </h6>
+
+                                <!-- Content Type and Year -->
+                                <p class="text-muted small mb-2">
+                                    {% if proposal.content_type %}
+                                        {{ proposal.content_type.replace('_', ' ').title() }}
+                                    {% endif %}
+                                    {% if proposal.release_year %}
+                                        ({{ proposal.release_year }})
+                                    {% endif %}
+                                </p>
+
+                                <!-- Reason (truncated) -->
+                                <p class="card-text small">
+                                    {{ proposal.reason[:100] }}{% if proposal.reason|length > 100 %}...{% endif %}
+                                </p>
+
+                                <!-- Voting Info -->
+                                <div class="row text-center mb-2">
+                                    <div class="col-4">
+                                        <div class="text-success">
+                                            <i class="fas fa-thumbs-up"></i>
+                                            <span>{{ proposal.upvotes }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-danger">
+                                            <i class="fas fa-thumbs-down"></i>
+                                            <span>{{ proposal.downvotes }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-info">
+                                            <small>{{ "%.1f"|format(proposal.get_approval_rate()) }}%</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- User Vote Indicator -->
+                                {% if proposal.id in user_votes %}
+                                    <div class="text-center mb-2">
+                                        <small class="badge 
+                                            {% if user_votes[proposal.id].vote_type == 'upvote' %}bg-success
+                                            {% else %}bg-danger{% endif %}">
+                                            You voted: {{ user_votes[proposal.id].vote_type }}
+                                        </small>
+                                    </div>
+                                {% endif %}
+
+                                <!-- Proposer and Date -->
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        By {{ proposal.proposer.username }}
+                                    </small>
+                                    <small class="text-muted">
+                                        {{ proposal.created_at.strftime('%m/%d/%y') }}
+                                    </small>
+                                </div>
+
+                                {% if proposal.proposed_watch_date %}
+                                <div class="mt-1">
+                                    <small class="text-info">
+                                        <i class="fas fa-calendar"></i>
+                                        Proposed: {{ proposal.proposed_watch_date.strftime('%m/%d/%y') }}
+                                    </small>
+                                </div>
+                                {% endif %}
+
+                                <!-- Expiry Warning -->
+                                {% if proposal.status == 'pending' and proposal.expires_at %}
+                                    <div class="mt-1">
+                                        <small class="text-warning">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            Expires: {{ proposal.expires_at.strftime('%b %d, %Y') }}
+                                        </small>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="card-footer bg-transparent">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{{ url_for('proposals.view_proposal', proposal_id=proposal.id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        View Details
+                                    </a>
+                                    
+                                    {% if proposal.can_user_vote(current_user.id)[0] %}
+                                    <div class="btn-group" role="group">
+                                        <form method="POST" action="{{ url_for('proposals.vote_proposal', proposal_id=proposal.id) }}" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="vote_type" value="upvote">
+                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Approve">
+                                                <i class="fas fa-thumbs-up"></i>
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{{ url_for('proposals.vote_proposal', proposal_id=proposal.id) }}" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="vote_type" value="downvote">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Reject">
+                                                <i class="fas fa-thumbs-down"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if proposals.pages > 1 %}
+                <nav aria-label="Proposals pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if proposals.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('proposals.group_proposals', group_id=group.id, page=proposals.prev_num) }}">Previous</a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in proposals.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != proposals.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('proposals.group_proposals', group_id=group.id, page=page_num) }}">{{ page_num }}</a>
+                                </li>
+                                {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if proposals.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('proposals.group_proposals', group_id=group.id, page=proposals.next_num) }}">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+            {% else %}
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <i class="fas fa-lightbulb fa-3x text-muted"></i>
+                    </div>
+                    <h4>No Proposals Yet</h4>
+                    <p class="text-muted">Be the first to suggest content for your group to watch together!</p>
+                    <a href="{{ url_for('proposals.create_proposal', group_id=group.id) }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create First Proposal
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s;
+}
+.card:hover {
+    transform: translateY(-2px);
+}
+.badge {
+    font-size: 0.75em;
+}
+</style>
+{% endblock %}

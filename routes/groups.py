@@ -9,12 +9,10 @@ groups = Blueprint('groups', __name__)
 
 @groups.route('/groups')
 def discover_groups():
-    """Group discovery page - show public groups"""
     form = SearchGroupsForm()
     page = request.args.get('page', 1, type=int)
     search_query = request.args.get('search', '')
     
-    # Build query for public groups
     query = Group.query.filter_by(privacy_level='public')
     
     if search_query:
