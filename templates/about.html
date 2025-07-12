@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}About - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <h1 class="mb-4">About WatchTogether</h1>
+        
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Our Mission</h5>
+                <p class="card-text">
+                    WatchTogether is a social entertainment platform designed to bring people closer through shared viewing experiences. 
+                    In an increasingly connected world, we believe that entertainment is better when shared with others.
+                </p>
+                
+                <h5 class="card-title mt-4">Features</h5>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex align-items-center">
+                        <i class="fas fa-check text-success me-2"></i>
+                        User-friendly interface and easy setup
+                    </li>
+                    <li class="list-group-item d-flex align-items-center">
+                        <i class="fas fa-check text-success me-2"></i>
+                        others added soon...
+                    </li>
+                </ul>
+                
+                <h5 class="card-title mt-4">Get Started</h5>
+                <p class="card-text">
+                    Ready to start watching? <a href="{{ url_for('auth.register') }}">Create an account</a> 
+                    and invite your friends to join you for an amazing experience!
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

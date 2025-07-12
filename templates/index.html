@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome to WatchTogether{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto text-center">
+        <!-- Hero Section -->
+        <div class="jumbotron bg-primary text-white rounded p-5 mb-5">
+            <h1 class="display-4">Hello World!</h1>
+            <h2 class="display-5">Welcome to WatchTogether</h2>
+            <p class="lead">The ultimate social entertainment platform where friends come together to share, and enjoy content.</p>
+            <hr class="my-4" style="border-color: rgba(255,255,255,0.3);">
+            <p>Invite friends, and experience movies and shows together!</p>
+            {% if not current_user.is_authenticated %}
+                <a class="btn btn-light btn-lg me-3" href="{{ url_for('auth.register') }}" role="button">Get Started</a>
+                <a class="btn btn-outline-light btn-lg" href="{{ url_for('auth.login') }}" role="button">Sign In</a>
+            {% else %}
+                <a class="btn btn-light btn-lg" href="{{ url_for('main.something') }}" role="button">Explore ...</a>
+            {% endif %}
+        </div>
+
+        <!-- Features Section -->
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="feature-icon bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                            <i class="fas fa-users fa-lg"></i>
+                        </div>
+                        <h5 class="card-title">WatchTogether</h5>
+                        <p class="card-text">...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="feature-icon bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                            <i class="fas fa-comments fa-lg"></i>
+                        </div>
+                        <h5 class="card-title">Live Chat</h5>
+                        <p class="card-text">Chat with your friends ...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="feature-icon bg-info text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                            <i class="fas fa-play fa-lg"></i>
+                        </div>
+                        <h5 class="card-title">Easy Setup</h5>
+                        <p class="card-text">Create a group, share the link, suggest and watch. It's that simple!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        {% if not current_user.is_authenticated %}
+        <div class="mt-5 p-4 bg-light rounded">
+            <h3>Ready to start watching?</h3>
+            <p class="mb-3">Join your friends who are already enjoying similar entertainment experiences.</p>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Create Your Account</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
