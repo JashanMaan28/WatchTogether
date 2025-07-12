@@ -667,6 +667,92 @@
     </div>
     {% endif %}
     
+    <!-- Discussion Section -->
+    <div class="content-info-section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5>
+                <i class="fas fa-comments text-primary me-2"></i>
+                Discussions
+            </h5>
+            <a href="{{ url_for('discussion.content_discussions', content_id=content.id) }}" 
+               class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-comments"></i> View All Discussions
+            </a>
+        </div>
+        
+        <!-- Quick Discussion Stats -->
+        <div class="row mb-3">
+            <div class="col-6">
+                <div class="text-center">
+                    <h4 class="text-primary mb-1">{{ content.discussions|length }}</h4>
+                    <small class="text-muted">Total Discussions</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="text-center">
+                    <h4 class="text-success mb-1">{{ content.discussions|selectattr('parent_id', 'none')|list|length }}</h4>
+                    <small class="text-muted">Main Topics</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Discussions Preview -->
+        {% set recent_discussions = content.discussions|selectattr('parent_id', 'none')|selectattr('is_hidden', 'false')|sort(attribute='created_at', reverse=true)|list %}
+        {% if recent_discussions %}
+        <div class="border rounded p-3">
+            <h6 class="mb-3">Recent Discussions</h6>
+            {% for discussion in recent_discussions[:3] %}
+            <div class="d-flex align-items-start mb-3" {% if loop.last %}style="margin-bottom: 0 !important;"{% endif %}>
+                <div class="me-2">
+                    {% if discussion.user.profile_picture and discussion.user.profile_picture != 'default.jpg' %}
+                        <img src="{{ url_for('static', filename='uploads/profile_pics/' + discussion.user.profile_picture) }}" 
+                             alt="{{ discussion.user.username }}" class="rounded-circle" style="width: 30px; height: 30px; object-fit: cover;">
+                    {% else %}
+                        <img src="{{ url_for('static', filename='images/default_avatar.svg') }}" 
+                             alt="{{ discussion.user.username }}" class="rounded-circle" style="width: 30px; height: 30px;">
+                    {% endif %}
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center mb-1">
+                        <small class="fw-bold me-2">{{ discussion.user.get_full_name() or discussion.user.username }}</small>
+                        <small class="text-muted">{{ discussion.created_at.strftime('%b %d') }}</small>
+                        {% if discussion.has_spoilers %}
+                        <span class="badge bg-warning ms-2" style="font-size: 0.6em;">
+                            <i class="fas fa-exclamation-triangle"></i> Spoilers
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="small text-muted mb-1">
+                        {{ discussion.message[:100] }}{% if discussion.message|length > 100 %}...{% endif %}
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <small class="text-muted me-3">
+                            <i class="fas fa-thumbs-up text-success"></i> {{ discussion.get_like_count() }}
+                        </small>
+                        <small class="text-muted me-3">
+                            <i class="fas fa-reply text-primary"></i> {{ discussion.get_reply_count() }}
+                        </small>
+                        <a href="{{ url_for('discussion.view_thread', discussion_id=discussion.id) }}" 
+                           class="btn btn-link btn-sm p-0 small">
+                            View thread
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-comments fa-2x mb-2"></i>
+            <p>No discussions yet. Be the first to start the conversation!</p>
+            <a href="{{ url_for('discussion.content_discussions', content_id=content.id) }}" 
+               class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Start Discussion
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    
     <!-- Recommendations -->
     {% if recommendations %}
     <div class="recommendations">

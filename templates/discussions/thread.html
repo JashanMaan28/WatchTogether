@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block title %}Discussion Thread - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                {% if discussion.content_id %}
+                    <a href="{{ url_for('discussion.content_discussions', content_id=discussion.content_id) }}" class="btn btn-outline-secondary me-3">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                    <div>
+                        <h2 class="h4 mb-1">Discussion Thread</h2>
+                        <p class="text-muted mb-0">
+                            <a href="{{ url_for('discussion.content_discussions', content_id=discussion.content_id) }}" class="text-decoration-none">
+                                {{ discussion.content.title }} discussions
+                            </a>
+                        </p>
+                    </div>
+                {% else %}
+                    <a href="{{ url_for('discussion.group_discussions', group_id=discussion.group_id) }}" class="btn btn-outline-secondary me-3">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                    <div>
+                        <h2 class="h4 mb-1">Discussion Thread</h2>
+                        <p class="text-muted mb-0">
+                            <a href="{{ url_for('discussion.group_discussions', group_id=discussion.group_id) }}" class="text-decoration-none">
+                                {{ discussion.group.name }} discussions
+                            </a>
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Main Discussion -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    {% include 'discussions/_discussion_item.html' %}
+                </div>
+            </div>
+
+            <!-- Thread Replies -->
+            {% if thread_replies %}
+            <div class="thread-replies">
+                <h5 class="mb-3">
+                    <i class="fas fa-comments text-primary me-2"></i>
+                    Replies ({{ thread_replies|length }})
+                </h5>
+                
+                {% for reply_data in thread_replies %}
+                    {% set reply = reply_data.discussion %}
+                    {% set depth = reply_data.depth %}
+                    
+                    <div class="card mb-3 reply-card" style="margin-left: {{ depth * 20 }}px;">
+                        <div class="card-body">
+                            {% set discussion = reply %}
+                            {% include 'discussions/_discussion_item.html' %}
+                        </div>
+                        
+                        <!-- Nested Replies -->
+                        {% if reply_data.replies %}
+                            <div class="nested-replies">
+                                {% for nested_reply_data in reply_data.replies %}
+                                    {% set nested_reply = nested_reply_data.discussion %}
+                                    {% set nested_depth = nested_reply_data.depth %}
+                                    
+                                    <div class="card mb-2 ms-3 nested-reply-card" style="margin-left: {{ (nested_depth - depth - 1) * 15 }}px;">
+                                        <div class="card-body py-2">
+                                            {% set discussion = nested_reply %}
+                                            {% include 'discussions/_discussion_item.html' %}
+                                        </div>
+                                        
+                                        <!-- Further nested replies (recursive) -->
+                                        {% if nested_reply_data.replies %}
+                                            {% for deep_reply_data in nested_reply_data.replies %}
+                                                {% set deep_reply = deep_reply_data.discussion %}
+                                                <div class="card mb-2 ms-3">
+                                                    <div class="card-body py-2">
+                                                        {% set discussion = deep_reply %}
+                                                        {% include 'discussions/_discussion_item.html' %}
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Add Reply to Main Discussion -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-reply text-primary me-2"></i>
+                        Add Reply
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('discussion.create_discussion') }}">
+                        {{ form.hidden_tag() }}
+                        <input type="hidden" name="parent_id" value="{{ discussion.id }}">
+                        {% if discussion.content_id %}
+                            <input type="hidden" name="content_id" value="{{ discussion.content_id }}">
+                        {% else %}
+                            <input type="hidden" name="group_id" value="{{ discussion.group_id }}">
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            {{ form.message.label(class="form-label") }}
+                            {{ form.message(class="form-control", rows="4") }}
+                            {% if form.message.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.message.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="form-check">
+                                {{ form.has_spoilers(class="form-check-input") }}
+                                {{ form.has_spoilers.label(class="form-check-label") }}
+                            </div>
+                            {{ form.submit(class="btn btn-primary", value="Post Reply") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Thread Info Sidebar (hidden on mobile) -->
+        <div class="col-lg-4 d-none d-lg-block">
+            <div class="sticky-top" style="top: 20px;">
+                <!-- Thread Stats -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-chart-line text-info me-2"></i>
+                            Thread Stats
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h4 class="text-primary mb-1">{{ discussion.get_like_count() }}</h4>
+                                <small class="text-muted">Likes</small>
+                            </div>
+                            <div class="col-6">
+                                <h4 class="text-success mb-1">{{ discussion.get_reply_count() }}</h4>
+                                <small class="text-muted">Replies</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Original Discussion Context -->
+                {% if discussion.content_id %}
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-film text-warning me-2"></i>
+                            About
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            {% if discussion.content.poster_url %}
+                            <img src="{{ discussion.content.poster_url }}" alt="{{ discussion.content.title }}" 
+                                 class="rounded me-3" style="width: 50px; height: 75px; object-fit: cover;">
+                            {% endif %}
+                            <div>
+                                <h6 class="mb-1">{{ discussion.content.title }}</h6>
+                                <small class="text-muted">
+                                    {{ discussion.content.type.replace('_', ' ').title() }}
+                                    {% if discussion.content.year %} • {{ discussion.content.year }}{% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <a href="{{ url_for('content.detail', tmdb_id=discussion.content.tmdb_id, content_type=(discussion.content.type if discussion.content.type != 'tv_show' else 'tv')) if discussion.content.tmdb_id else '#' }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-info-circle"></i> View Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% elif discussion.group_id %}
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-users text-warning me-2"></i>
+                            Group
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="mb-1">{{ discussion.group.name }}</h6>
+                        <small class="text-muted">
+                            {{ discussion.group.get_member_count() }} members • {{ discussion.group.privacy_level.title() }}
+                        </small>
+                        {% if discussion.group.description %}
+                        <p class="mt-2 mb-0 small">{{ discussion.group.description[:100] }}{% if discussion.group.description|length > 100 %}...{% endif %}</p>
+                        {% endif %}
+                        <div class="mt-3">
+                            <a href="{{ url_for('groups.view_group', group_id=discussion.group.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-users"></i> View Group
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Thread Navigation -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-list text-secondary me-2"></i>
+                            Quick Navigation
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="scrollToTop()">
+                                <i class="fas fa-arrow-up"></i> Top of Thread
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="scrollToBottom()">
+                                <i class="fas fa-arrow-down"></i> Add Reply
+                            </button>
+                            {% if discussion.content_id %}
+                            <a href="{{ url_for('discussion.content_discussions', content_id=discussion.content_id) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-comments"></i> All Discussions
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('discussion.group_discussions', group_id=discussion.group_id) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-comments"></i> All Discussions
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function scrollToBottom() {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+
+// Auto-expand deeply nested replies on scroll
+document.addEventListener('DOMContentLoaded', function() {
+    // Collapse very deep threads initially
+    document.querySelectorAll('.nested-reply-card').forEach(function(card, index) {
+        const depth = parseInt(card.style.marginLeft) || 0;
+        if (depth > 60) { // More than 4 levels deep
+            card.classList.add('deeply-nested');
+            if (index > 5) { // Collapse if there are many
+                card.style.display = 'none';
+                
+                // Add show more button
+                const showMoreBtn = document.createElement('button');
+                showMoreBtn.className = 'btn btn-sm btn-outline-secondary ms-3 mb-2';
+                showMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Show more replies';
+                showMoreBtn.onclick = function() {
+                    card.style.display = 'block';
+                    showMoreBtn.remove();
+                };
+                card.parentNode.insertBefore(showMoreBtn, card);
+            }
+        }
+    });
+});
+</script>
+
+<style>
+.reply-card {
+    border-left: 3px solid #dee2e6;
+}
+
+.nested-reply-card {
+    border-left: 2px solid #e9ecef;
+    background-color: #f8f9fa;
+}
+
+.deeply-nested {
+    border-left: 1px solid #e9ecef;
+}
+
+@media (max-width: 768px) {
+    .reply-card, .nested-reply-card {
+        margin-left: 0 !important;
+    }
+}
+</style>
+{% endblock %}

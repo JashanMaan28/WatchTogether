@@ -146,13 +146,22 @@ def view_group(group_id):
             can_join_result, message = group.can_user_join(current_user.id)
             can_join = can_join_result
     
+    # Get recent discussions for activity feed
+    from models import Discussion
+    recent_discussions = Discussion.query.filter_by(
+        group_id=group_id,
+        parent_id=None,  # Only top-level discussions
+        is_hidden=False
+    ).order_by(Discussion.created_at.desc()).limit(5).all()
+    
     return render_template('groups/view.html',
                          group=group,
                          members=members,
                          user_membership=user_membership,
                          can_join=can_join,
                          join_form=join_form,
-                         leave_form=leave_form)
+                         leave_form=leave_form,
+                         recent_discussions=recent_discussions)
 
 @groups.route('/groups/<int:group_id>/join', methods=['POST'])
 @login_required

@@ -409,6 +409,9 @@ def add_from_tmdb():
         tmdb_id = request.form.get('tmdb_id', type=int)
         content_type = request.form.get('content_type', 'movie')
         
+        # Map content type for TMDB API (handles 'tv_show' -> 'tv')
+        tmdb_content_type = 'tv' if content_type == 'tv_show' else content_type
+        
         if not tmdb_id:
             flash('Invalid content ID', 'error')
             return redirect(request.referrer or url_for('content.index'))
@@ -422,7 +425,7 @@ def add_from_tmdb():
         
         # Get content details from TMDB
         tmdb = TMDBService()
-        content_details = tmdb.get_content_details(tmdb_id, content_type)
+        content_details = tmdb.get_content_details(tmdb_id, tmdb_content_type)
         
         if not content_details:
             flash('Content not found on TMDB', 'error')
@@ -430,31 +433,23 @@ def add_from_tmdb():
         
         # Create new content in our database
         new_content = LocalContent(
-            title=content_details.get('title') or content_details.get('name', ''),
-            description=content_details.get('overview', ''),
-            type=content_type,
+            title=content_details.get('title', ''),
+            description=content_details.get('description', ''),
+            type=content_details.get('type', content_type),
             genre=', '.join(content_details.get('genres', [])),
-            year=None,
-            rating=content_details.get('vote_average'),
-            duration=content_details.get('runtime') or content_details.get('episode_run_time', [0])[0] if content_details.get('episode_run_time') else None,
-            poster_url=f"https://image.tmdb.org/t/p/w500{content_details['poster_path']}" if content_details.get('poster_path') else None,
-            backdrop_url=f"https://image.tmdb.org/t/p/w1280{content_details['backdrop_path']}" if content_details.get('backdrop_path') else None,
+            year=content_details.get('year'),
+            rating=content_details.get('rating'),
+            duration=content_details.get('duration'),
+            poster_url=content_details.get('poster_url'),
+            backdrop_url=content_details.get('backdrop_url'),
             tmdb_id=tmdb_id,
             imdb_id=content_details.get('imdb_id'),
-            director=', '.join([crew['name'] for crew in content_details.get('credits', {}).get('crew', []) if crew['job'] == 'Director'][:3]) if content_details.get('credits') else None,
-            cast=', '.join([cast['name'] for cast in content_details.get('credits', {}).get('cast', [])[:5]]) if content_details.get('credits') else None,
-            country=', '.join([country['name'] for country in content_details.get('production_countries', [])]),
-            language=content_details.get('original_language', '').upper(),
+            director=content_details.get('director'),
+            cast=', '.join(content_details.get('cast', [])) if content_details.get('cast') else None,
+            country=content_details.get('country'),
+            language=content_details.get('language', '').upper() if content_details.get('language') else None,
             status='active'
         )
-        
-        # Set year from release date
-        release_date = content_details.get('release_date') or content_details.get('first_air_date')
-        if release_date:
-            try:
-                new_content.year = int(release_date.split('-')[0])
-            except:
-                pass
         
         db.session.add(new_content)
         db.session.commit()

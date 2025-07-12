@@ -666,3 +666,46 @@ class WatchlistFilterForm(FlaskForm):
     ], default='added_at_desc')
     
     submit = SubmitField('Apply Filters')
+
+# Discussion Forms
+
+class DiscussionForm(FlaskForm):
+    """Form for creating and editing discussions"""
+    message = TextAreaField('Message', validators=[
+        DataRequired(message='Message is required'),
+        Length(min=1, max=2000, message='Message must be between 1-2000 characters')
+    ], render_kw={
+        'placeholder': 'Share your thoughts... Use @username to mention someone',
+        'rows': 4
+    })
+    has_spoilers = BooleanField('Contains Spoilers', default=False)
+    submit = SubmitField('Post Discussion')
+
+
+class ReportDiscussionForm(FlaskForm):
+    """Form for reporting inappropriate discussions"""
+    reason = SelectField('Reason', validators=[DataRequired()], choices=[
+        ('spam', 'Spam'),
+        ('inappropriate', 'Inappropriate Content'),
+        ('spoilers', 'Unmarked Spoilers'),
+        ('harassment', 'Harassment'),
+        ('off_topic', 'Off Topic'),
+        ('other', 'Other')
+    ])
+    description = TextAreaField('Additional Details', validators=[
+        Length(max=500, message='Description must be less than 500 characters')
+    ], render_kw={
+        'placeholder': 'Please provide additional details about why you are reporting this discussion...',
+        'rows': 3
+    })
+    submit = SubmitField('Submit Report')
+
+
+class DiscussionSearchForm(FlaskForm):
+    """Form for searching discussions"""
+    query = StringField('Search Discussions', validators=[
+        Length(min=1, max=100, message='Search query must be between 1-100 characters')
+    ], render_kw={
+        'placeholder': 'Search for discussions...'
+    })
+    submit = SubmitField('Search')

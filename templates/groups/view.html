@@ -59,6 +59,16 @@
                                     <i class="bi bi-people"></i> Members
                                 </a>
                                 
+                                <a href="{{ url_for('discussion.group_discussions', group_id=group.id) }}" 
+                                   class="btn btn-outline-success btn-sm me-2">
+                                    <i class="fas fa-comments"></i> Discussions
+                                </a>
+                                
+                                <a href="{{ url_for('watchlist.group_watchlist', group_id=group.id) }}" 
+                                   class="btn btn-outline-info btn-sm me-2">
+                                    <i class="fas fa-list"></i> Watchlist
+                                </a>
+                                
                                 {% if group.created_by != current_user.id %}
                                 <form method="POST" action="{{ url_for('groups.leave_group', group_id=group.id) }}" 
                                       class="d-inline" onsubmit="return confirm('Are you sure you want to leave this group?');">
@@ -99,16 +109,84 @@
                 </h5>
             </div>
             <div class="card-body">
-                <div class="text-center py-5">
-                    <i class="bi bi-chat-dots display-1 text-muted"></i>
-                    <h5 class="mt-3">No Activity Yet</h5>
-                    <p class="text-muted">Group activity and discussions will appear here.</p>
-                    {% if user_membership %}
-                    <button class="btn btn-outline-primary" disabled>
-                        <i class="bi bi-plus-circle me-1"></i>Start a Discussion
-                    </button>
-                    {% endif %}
-                </div>
+                {% if recent_discussions %}
+                    <!-- Recent Discussions Activity -->
+                    {% for discussion in recent_discussions %}
+                    <div class="d-flex align-items-start mb-3 {% if not loop.last %}border-bottom pb-3{% endif %}">
+                        <div class="me-3">
+                            {% if discussion.user.profile_picture and discussion.user.profile_picture != 'default.jpg' %}
+                                <img src="{{ url_for('static', filename='uploads/profile_pics/' + discussion.user.profile_picture) }}" 
+                                     alt="{{ discussion.user.username }}" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
+                            {% else %}
+                                <img src="{{ url_for('static', filename='images/default_avatar.svg') }}" 
+                                     alt="{{ discussion.user.username }}" class="rounded-circle" style="width: 40px; height: 40px;">
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-1">
+                                <h6 class="mb-0 me-2">{{ discussion.user.get_full_name() or discussion.user.username }}</h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-comments me-1"></i>
+                                    started a discussion • {{ discussion.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+                                </small>
+                                {% if discussion.has_spoilers %}
+                                <span class="badge bg-warning ms-2" style="font-size: 0.7em;">
+                                    <i class="fas fa-exclamation-triangle"></i> Spoilers
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="mb-2">
+                                {% if discussion.has_spoilers %}
+                                <div class="spoiler-content mb-2">
+                                    <div class="spoiler-warning alert alert-warning py-2 mb-2" style="cursor: pointer;" onclick="toggleSpoiler(this)">
+                                        <i class="fas fa-eye-slash me-2"></i>
+                                        <strong>Spoiler Content</strong> - Click to reveal
+                                    </div>
+                                    <div class="spoiler-text" style="display: none;">
+                                        {{ discussion.message[:150] }}{% if discussion.message|length > 150 %}...{% endif %}
+                                    </div>
+                                </div>
+                                {% else %}
+                                <p class="mb-2">{{ discussion.message[:150] }}{% if discussion.message|length > 150 %}...{% endif %}</p>
+                                {% endif %}
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <small class="text-muted me-3">
+                                    <i class="fas fa-thumbs-up text-success"></i> {{ discussion.get_like_count() }}
+                                </small>
+                                <small class="text-muted me-3">
+                                    <i class="fas fa-reply text-primary"></i> {{ discussion.get_reply_count() }}
+                                </small>
+                                <a href="{{ url_for('discussion.view_thread', discussion_id=discussion.id) }}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    View Discussion
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <!-- View All Discussions Link -->
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('discussion.group_discussions', group_id=group.id) }}" 
+                           class="btn btn-primary btn-sm">
+                            <i class="fas fa-comments"></i> View All Discussions
+                        </a>
+                    </div>
+                {% else %}
+                    <!-- No Activity Yet -->
+                    <div class="text-center py-5">
+                        <i class="bi bi-chat-dots display-1 text-muted"></i>
+                        <h5 class="mt-3">No Activity Yet</h5>
+                        <p class="text-muted">Group activity and discussions will appear here.</p>
+                        {% if user_membership %}
+                        <a href="{{ url_for('discussion.group_discussions', group_id=group.id) }}" 
+                           class="btn btn-outline-primary">
+                            <i class="bi bi-plus-circle me-1"></i>Start a Discussion
+                        </a>
+                        {% endif %}
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -221,4 +299,20 @@
     transform: scale(1.1);
 }
 </style>
+
+<script>
+function toggleSpoiler(element) {
+    const spoilerContent = element.parentElement;
+    const spoilerText = spoilerContent.querySelector('.spoiler-text');
+    const warning = spoilerContent.querySelector('.spoiler-warning');
+    
+    if (spoilerText.style.display === 'none') {
+        spoilerText.style.display = 'block';
+        warning.innerHTML = '<i class="fas fa-eye me-2"></i><strong>Spoiler Content</strong> - Click to hide';
+    } else {
+        spoilerText.style.display = 'none';
+        warning.innerHTML = '<i class="fas fa-eye-slash me-2"></i><strong>Spoiler Content</strong> - Click to reveal';
+    }
+}
+</script>
 {% endblock %}

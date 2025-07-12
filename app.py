@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect
 from config import config
 import logging
 from logging.handlers import RotatingFileHandler
@@ -9,6 +10,7 @@ import os
 # Initialize extensions
 db = SQLAlchemy()
 login_manager = LoginManager()
+csrf = CSRFProtect()
 
 def create_app(config_name=None):
     """Application factory pattern"""
@@ -21,6 +23,7 @@ def create_app(config_name=None):
     # Initialize extensions with app
     db.init_app(app)
     login_manager.init_app(app)
+    csrf.init_app(app)
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Please log in to access this page.'
     login_manager.login_message_category = 'info'
@@ -50,6 +53,23 @@ def create_app(config_name=None):
     
     from routes.ratings import ratings_bp as ratings_blueprint
     app.register_blueprint(ratings_blueprint)
+    
+    from routes.discussions import discussion_bp as discussion_blueprint
+    app.register_blueprint(discussion_blueprint)
+    
+    # Custom Jinja2 filters
+    @app.template_filter('nl2br')
+    def nl2br_filter(text):
+        """Convert newlines to HTML line breaks"""
+        if not text:
+            return text
+        return text.replace('\n', '<br>')
+    
+    # Template context processor for CSRF token
+    @app.context_processor
+    def inject_csrf_token():
+        from flask_wtf.csrf import generate_csrf
+        return dict(csrf_token=generate_csrf)
     
     # Error handlers
     from routes.errors import errors as errors_blueprint

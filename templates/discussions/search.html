@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}Search Discussions - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                {% if content %}
+                    <a href="{{ url_for('discussion.content_discussions', content_id=content.id) }}" class="btn btn-outline-secondary me-3">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                {% elif group %}
+                    <a href="{{ url_for('discussion.group_discussions', group_id=group.id) }}" class="btn btn-outline-secondary me-3">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('content.index') }}" class="btn btn-outline-secondary me-3">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-search text-primary me-2"></i>
+                        Search Discussions
+                    </h1>
+                    <p class="text-muted mb-0">
+                        {% if content %}
+                            Searching in {{ content.title }} discussions
+                        {% elif group %}
+                            Searching in {{ group.name }} discussions
+                        {% else %}
+                            Search all discussions
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Search Area -->
+        <div class="col-lg-8">
+            <!-- Search Form -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('discussion.search_discussions') }}">
+                        {% if content %}
+                            <input type="hidden" name="content_id" value="{{ content.id }}">
+                        {% endif %}
+                        {% if group %}
+                            <input type="hidden" name="group_id" value="{{ group.id }}">
+                        {% endif %}
+                        
+                        <div class="input-group input-group-lg">
+                            <input type="text" class="form-control" name="q" 
+                                   value="{{ query }}" placeholder="Search discussions..." 
+                                   autocomplete="off" autofocus>
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                        </div>
+                        
+                        <div class="form-text mt-2">
+                            <i class="fas fa-lightbulb text-warning me-1"></i>
+                            <strong>Tips:</strong> Search for keywords, usernames, or phrases. Use quotes for exact matches.
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Search Results -->
+            {% if query %}
+                {% if discussions %}
+                    <div class="mb-3">
+                        <h5 class="text-muted">
+                            {% if pagination %}
+                                Found {{ pagination.total }} result{{ 's' if pagination.total != 1 else '' }} for "{{ query }}"
+                            {% else %}
+                                Search results for "{{ query }}"
+                            {% endif %}
+                        </h5>
+                    </div>
+
+                    {% for discussion in discussions %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <!-- Search Result Header -->
+                            <div class="d-flex align-items-start mb-3">
+                                <div class="me-3">
+                                    {% if discussion.user.profile_picture and discussion.user.profile_picture != 'default.jpg' %}
+                                        <img src="{{ url_for('static', filename='uploads/profile_pics/' + discussion.user.profile_picture) }}" 
+                                             alt="{{ discussion.user.username }}" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
+                                    {% else %}
+                                        <img src="{{ url_for('static', filename='images/default_avatar.svg') }}" 
+                                             alt="{{ discussion.user.username }}" class="rounded-circle" style="width: 40px; height: 40px;">
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <h6 class="mb-0 me-2">
+                                            <a href="{{ url_for('auth.view_profile', user_id=discussion.user.id) }}" class="text-decoration-none">
+                                                {{ discussion.user.get_full_name() or discussion.user.username }}
+                                            </a>
+                                        </h6>
+                                        <small class="text-muted">@{{ discussion.user.username }}</small>
+                                        {% if discussion.is_pinned %}
+                                        <span class="badge bg-warning ms-2">
+                                            <i class="fas fa-thumbtack"></i> Pinned
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <small class="text-muted me-3">
+                                            {{ discussion.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+                                        </small>
+                                        {% if discussion.content_id %}
+                                        <small class="text-primary">
+                                            <i class="fas fa-film me-1"></i>
+                                            <a href="{{ url_for('discussion.content_discussions', content_id=discussion.content_id) }}" class="text-decoration-none">
+                                                {{ discussion.content.title }}
+                                            </a>
+                                        </small>
+                                        {% elif discussion.group_id %}
+                                        <small class="text-success">
+                                            <i class="fas fa-users me-1"></i>
+                                            <a href="{{ url_for('discussion.group_discussions', group_id=discussion.group_id) }}" class="text-decoration-none">
+                                                {{ discussion.group.name }}
+                                            </a>
+                                        </small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Discussion Content -->
+                            <div class="discussion-preview mb-3">
+                                {% if discussion.has_spoilers %}
+                                <div class="alert alert-warning alert-sm mb-2">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    Contains Spoilers
+                                </div>
+                                {% endif %}
+                                <div class="search-snippet">
+                                    {{ discussion.message[:300] | nl2br | safe }}
+                                    {% if discussion.message|length > 300 %}...{% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Discussion Stats -->
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center">
+                                    <span class="text-muted me-3">
+                                        <i class="fas fa-thumbs-up text-success"></i> {{ discussion.get_like_count() }}
+                                    </span>
+                                    <span class="text-muted me-3">
+                                        <i class="fas fa-reply text-primary"></i> {{ discussion.get_reply_count() }}
+                                    </span>
+                                    {% if discussion.parent_id %}
+                                    <span class="text-muted me-3">
+                                        <i class="fas fa-level-up-alt text-info"></i> Reply
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <a href="{{ url_for('discussion.view_thread', discussion_id=discussion.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-external-link-alt"></i> View Discussion
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Pagination -->
+                    {% if pagination and pagination.pages > 1 %}
+                    <nav aria-label="Search results pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if pagination.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('discussion.search_discussions', q=query, page=pagination.prev_num, content_id=content.id if content else none, group_id=group.id if group else none) }}">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">{{ pagination.page }}</span>
+                            </li>
+                            
+                            {% if pagination.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('discussion.search_discussions', q=query, page=pagination.next_num, content_id=content.id if content else none, group_id=group.id if group else none) }}">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                {% else %}
+                    <!-- No Results -->
+                    <div class="text-center py-5">
+                        <i class="fas fa-search fa-4x text-muted mb-3"></i>
+                        <h3 class="text-muted">No discussions found</h3>
+                        <p class="text-muted mb-4">
+                            We couldn't find any discussions matching "{{ query }}".
+                        </p>
+                        <div class="row justify-content-center">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Search Tips:</h6>
+                                        <ul class="list-unstyled mb-0 small">
+                                            <li class="mb-1">• Try different keywords</li>
+                                            <li class="mb-1">• Check your spelling</li>
+                                            <li class="mb-1">• Use fewer or more general terms</li>
+                                            <li class="mb-0">• Search for usernames with @username</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% else %}
+                <!-- Initial Search Page -->
+                <div class="text-center py-5">
+                    <i class="fas fa-comments fa-4x text-muted mb-3"></i>
+                    <h3 class="text-muted">Search Discussions</h3>
+                    <p class="text-muted mb-4">
+                        Find discussions about your favorite movies and TV shows.
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Search Sidebar -->
+        <div class="col-lg-4">
+            <!-- Search Context -->
+            {% if content %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-film text-warning me-2"></i>
+                        Searching In
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        {% if content.poster_url %}
+                        <img src="{{ content.poster_url }}" alt="{{ content.title }}" 
+                             class="rounded me-3" style="width: 50px; height: 75px; object-fit: cover;">
+                        {% endif %}
+                        <div>
+                            <h6 class="mb-1">{{ content.title }}</h6>
+                            <small class="text-muted">
+                                {{ content.type.replace('_', ' ').title() }}
+                                {% if content.year %} • {{ content.year }}{% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <a href="{{ url_for('discussion.search_discussions') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-globe"></i> Search All Discussions
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% elif group %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-users text-warning me-2"></i>
+                        Searching In
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <h6 class="mb-1">{{ group.name }}</h6>
+                    <small class="text-muted">
+                        {{ group.get_member_count() }} members • {{ group.privacy_level.title() }}
+                    </small>
+                    {% if group.description %}
+                    <p class="mt-2 mb-0 small">{{ group.description[:100] }}{% if group.description|length > 100 %}...{% endif %}</p>
+                    {% endif %}
+                    <div class="mt-3">
+                        <a href="{{ url_for('discussion.search_discussions') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-globe"></i> Search All Discussions
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Search Tips -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb text-info me-2"></i>
+                        Search Tips
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0 small">
+                        <li class="mb-2">
+                            <i class="fas fa-search text-primary me-2"></i>
+                            Use keywords from the discussion content
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-user text-success me-2"></i>
+                            Search for usernames with @username
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-quote-left text-warning me-2"></i>
+                            Use quotes for exact phrase matches
+                        </li>
+                        <li class="mb-0">
+                            <i class="fas fa-filter text-info me-2"></i>
+                            Combine multiple keywords for better results
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Highlight search terms in results
+document.addEventListener('DOMContentLoaded', function() {
+    const query = "{{ query | e }}";
+    if (query) {
+        const searchTerms = query.toLowerCase().split(' ');
+        const snippets = document.querySelectorAll('.search-snippet');
+        
+        snippets.forEach(function(snippet) {
+            let html = snippet.innerHTML;
+            searchTerms.forEach(function(term) {
+                if (term.length > 2) {
+                    const regex = new RegExp(`(${term})`, 'gi');
+                    html = html.replace(regex, '<mark>$1</mark>');
+                }
+            });
+            snippet.innerHTML = html;
+        });
+    }
+});
+</script>
+{% endblock %}

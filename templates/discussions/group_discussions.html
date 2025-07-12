@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}{{ group.name }} - Discussions - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Group Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center">
+                <a href="{{ url_for('groups.view_group', group_id=group.id) }}" class="btn btn-outline-secondary me-3">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-users text-primary me-2"></i>
+                        {{ group.name }} - Discussions
+                    </h1>
+                    <p class="text-muted mb-0">
+                        {{ group.get_member_count() }} members • {{ group.privacy_level.title() }} Group
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Discussion Area -->
+        <div class="col-lg-8">
+            <!-- Discussion Controls -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-comments text-primary me-2"></i>
+                            Group Discussions
+                        </h5>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                Sort: {{ {'recent': 'Most Recent', 'popular': 'Most Popular', 'oldest': 'Oldest First'}[sort_by] }}
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('discussion.group_discussions', group_id=group.id, sort_by='recent') }}">Most Recent</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('discussion.group_discussions', group_id=group.id, sort_by='popular') }}">Most Popular</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('discussion.group_discussions', group_id=group.id, sort_by='oldest') }}">Oldest First</a></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- New Discussion Form -->
+                    <form method="POST" action="{{ url_for('discussion.create_discussion') }}" id="discussionForm">
+                        {{ form.hidden_tag() }}
+                        <input type="hidden" name="group_id" value="{{ group.id }}">
+                        
+                        <div class="mb-3">
+                            {{ form.message.label(class="form-label") }}
+                            {{ form.message(class="form-control") }}
+                            {% if form.message.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.message.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="form-check">
+                                {{ form.has_spoilers(class="form-check-input") }}
+                                {{ form.has_spoilers.label(class="form-check-label") }}
+                            </div>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Pinned Discussions -->
+            {% if pinned_discussions %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-thumbtack text-warning me-2"></i>
+                        Pinned Discussions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for discussion in pinned_discussions %}
+                    <div class="border-bottom pb-3 mb-3" {% if loop.last %}style="border-bottom: none !important; margin-bottom: 0 !important; padding-bottom: 0 !important;"{% endif %}>
+                        {% include 'discussions/_discussion_item.html' %}
+                        {% if discussion.can_user_pin(current_user.id) %}
+                        <div class="mt-2">
+                            <form method="POST" action="{{ url_for('discussion.toggle_pin_discussion', discussion_id=discussion.id) }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-warning">
+                                    <i class="fas fa-thumbtack"></i> Unpin
+                                </button>
+                            </form>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Regular Discussions -->
+            {% if discussions.items %}
+                {% for discussion in discussions.items %}
+                <div class="card mb-3 discussion-item" data-discussion-id="{{ discussion.id }}">
+                    <div class="card-body">
+                        {% include 'discussions/_discussion_item.html' %}
+                        
+                        <!-- Moderation Actions for Admins/Moderators -->
+                        {% if discussion.can_user_pin(current_user.id) %}
+                        <div class="mt-3 pt-3 border-top">
+                            <div class="btn-group btn-group-sm">
+                                <form method="POST" action="{{ url_for('discussion.toggle_pin_discussion', discussion_id=discussion.id) }}" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-outline-warning">
+                                        <i class="fas fa-thumbtack"></i> 
+                                        {% if discussion.is_pinned %}Unpin{% else %}Pin{% endif %}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Pagination -->
+                {% if discussions.pages > 1 %}
+                <nav aria-label="Discussion pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if discussions.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('discussion.group_discussions', group_id=group.id, page=discussions.prev_num, sort_by=sort_by) }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in discussions.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != discussions.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('discussion.group_discussions', group_id=group.id, page=page_num, sort_by=sort_by) }}">{{ page_num }}</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if discussions.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('discussion.group_discussions', group_id=group.id, page=discussions.next_num, sort_by=sort_by) }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+            {% else %}
+                <!-- Empty State -->
+                <div class="text-center py-5">
+                    <i class="fas fa-comments fa-4x text-muted mb-3"></i>
+                    <h3 class="text-muted">No discussions yet</h3>
+                    <p class="text-muted mb-4">Start the conversation in {{ group.name }}!</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Search Discussions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-search text-secondary me-2"></i>
+                        Search Discussions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('discussion.search_discussions') }}">
+                        <input type="hidden" name="group_id" value="{{ group.id }}">
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="q" placeholder="Search discussions...">
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Group Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle text-info me-2"></i>
+                        Group Info
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="text-primary mb-1">{{ group.get_member_count() }}</h4>
+                            <small class="text-muted">Members</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success mb-1">{{ discussions.total }}</h4>
+                            <small class="text-muted">Discussions</small>
+                        </div>
+                    </div>
+                    {% if group.description %}
+                    <hr>
+                    <p class="small text-muted mb-0">{{ group.description[:100] }}{% if group.description|length > 100 %}...{% endif %}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Group Activity -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-clock text-secondary me-2"></i>
+                        Recent Activity
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-users text-primary me-2"></i>
+                        <small>
+                            <a href="{{ url_for('groups.view_group', group_id=group.id) }}" class="text-decoration-none">
+                                View group details
+                            </a>
+                        </small>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-list text-success me-2"></i>
+                        <small>
+                            <a href="{{ url_for('watchlist.group_watchlist', group_id=group.id) }}" class="text-decoration-none">
+                                Group watchlist
+                            </a>
+                        </small>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user-friends text-info me-2"></i>
+                        <small>
+                            <a href="{{ url_for('groups.view_group', group_id=group.id) }}#members" class="text-decoration-none">
+                                View members
+                            </a>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Auto-refresh for new discussions -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let lastUpdate = new Date().toISOString();
+    
+    // Poll for new discussions every 30 seconds
+    setInterval(function() {
+        fetch(`{{ url_for('discussion.api_recent_group_discussions', group_id=group.id) }}?since=${lastUpdate}&limit=5`)
+            .then(response => response.json())
+            .then(discussions => {
+                if (discussions.length > 0) {
+                    // Update lastUpdate timestamp
+                    lastUpdate = new Date().toISOString();
+                    
+                    // Show notification
+                    showNewDiscussionNotification(discussions.length);
+                }
+            })
+            .catch(error => console.error('Error polling for new discussions:', error));
+    }, 30000);
+    
+    function showNewDiscussionNotification(count) {
+        const notification = document.createElement('div');
+        notification.className = 'alert alert-info alert-dismissible fade show position-fixed';
+        notification.style.top = '20px';
+        notification.style.right = '20px';
+        notification.style.zIndex = '9999';
+        notification.innerHTML = `
+            ${count} new discussion${count > 1 ? 's' : ''} available. 
+            <a href="#" onclick="location.reload()" class="alert-link">Refresh to see</a>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 10 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 10000);
+    }
+});
+</script>
+
+<script src="{{ url_for('static', filename='js/discussions.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize DiscussionManager
+    window.discussionManager = new DiscussionManager();
+});
+</script>
+{% endblock %}

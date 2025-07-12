@@ -1435,3 +1435,346 @@ class RatingStatistics(db.Model):
     
     def __repr__(self):
         return f'<RatingStatistics {self.content.title}: {self.average_rating}/5 ({self.total_ratings} ratings)>'
+
+# Discussion System Models
+
+class Discussion(db.Model):
+    """Discussion model for content and group discussions"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    content_id = db.Column(db.Integer, db.ForeignKey('content.id'), nullable=True)  # For content discussions
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=True)  # For group discussions
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('discussion.id'), nullable=True)  # For threading
+    
+    message = db.Column(db.Text, nullable=False)
+    has_spoilers = db.Column(db.Boolean, default=False)
+    is_hidden = db.Column(db.Boolean, default=False)  # For moderation
+    is_pinned = db.Column(db.Boolean, default=False)  # For important discussions
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    edited_at = db.Column(db.DateTime, nullable=True)
+    
+    # Relationships
+    content = db.relationship('Content', backref='discussions')
+    group = db.relationship('Group', backref='discussions')
+    user = db.relationship('User', backref='discussions')
+    parent = db.relationship('Discussion', remote_side=[id], backref='replies')
+    
+    # Discussion interactions
+    likes = db.relationship('DiscussionLike', backref='discussion', cascade='all, delete-orphan')
+    reports = db.relationship('DiscussionReport', backref='discussion', cascade='all, delete-orphan')
+    notifications = db.relationship('DiscussionNotification', backref='discussion', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<Discussion {self.id}: {self.message[:50]}...>'
+    
+    def get_reply_count(self):
+        """Get total number of replies (including nested)"""
+        def count_recursive(discussion_id):
+            direct_replies = Discussion.query.filter_by(parent_id=discussion_id, is_hidden=False).count()
+            total = direct_replies
+            for reply in Discussion.query.filter_by(parent_id=discussion_id, is_hidden=False).all():
+                total += count_recursive(reply.id)
+            return total
+        
+        return count_recursive(self.id)
+    
+    def get_like_count(self):
+        """Get number of likes"""
+        return len([like for like in self.likes if like.is_like])
+    
+    def get_dislike_count(self):
+        """Get number of dislikes"""
+        return len([like for like in self.likes if not like.is_like])
+    
+    def get_user_reaction(self, user_id):
+        """Get user's reaction (like/dislike/none)"""
+        like = DiscussionLike.query.filter_by(
+            discussion_id=self.id,
+            user_id=user_id
+        ).first()
+        if like:
+            return 'like' if like.is_like else 'dislike'
+        return None
+    
+    def is_reported_by_user(self, user_id):
+        """Check if user has reported this discussion"""
+        return DiscussionReport.query.filter_by(
+            discussion_id=self.id,
+            reporter_id=user_id
+        ).first() is not None
+    
+    def get_thread_depth(self):
+        """Get the depth of this discussion in the thread"""
+        depth = 0
+        current = self
+        while current.parent_id:
+            depth += 1
+            current = current.parent
+        return depth
+    
+    def can_user_edit(self, user_id):
+        """Check if user can edit this discussion"""
+        if self.user_id == user_id:
+            return True
+        
+        # Check if user is group admin/moderator
+        if self.group_id:
+            member = GroupMember.query.filter_by(
+                group_id=self.group_id,
+                user_id=user_id
+            ).first()
+            return member and member.role in ['admin', 'moderator']
+        
+        return False
+    
+    def can_user_delete(self, user_id):
+        """Check if user can delete this discussion"""
+        return self.can_user_edit(user_id)
+    
+    def can_user_pin(self, user_id):
+        """Check if user can pin this discussion"""
+        if self.group_id:
+            member = GroupMember.query.filter_by(
+                group_id=self.group_id,
+                user_id=user_id
+            ).first()
+            return member and member.role in ['admin', 'moderator']
+        
+        return False
+    
+    def get_formatted_message(self):
+        """Get message with spoiler tags formatted"""
+        if self.has_spoilers:
+            return f"<span class='spoiler-warning'>⚠️ Contains Spoilers</span><br>{self.message}"
+        return self.message
+    
+    def to_dict(self, include_replies=False, user_id=None):
+        """Convert to dictionary for API responses"""
+        data = {
+            'id': self.id,
+            'content_id': self.content_id,
+            'group_id': self.group_id,
+            'user': {
+                'id': self.user.id,
+                'username': self.user.username,
+                'full_name': self.user.get_full_name(),
+                'profile_picture': self.user.profile_picture
+            },
+            'parent_id': self.parent_id,
+            'message': self.message,
+            'has_spoilers': self.has_spoilers,
+            'is_hidden': self.is_hidden,
+            'is_pinned': self.is_pinned,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+            'edited_at': self.edited_at.isoformat() if self.edited_at else None,
+            'like_count': self.get_like_count(),
+            'dislike_count': self.get_dislike_count(),
+            'reply_count': self.get_reply_count(),
+            'thread_depth': self.get_thread_depth(),
+            'user_reaction': self.get_user_reaction(user_id) if user_id else None,
+            'is_reported': self.is_reported_by_user(user_id) if user_id else False,
+            'can_edit': self.can_user_edit(user_id) if user_id else False,
+            'can_delete': self.can_user_delete(user_id) if user_id else False,
+            'can_pin': self.can_user_pin(user_id) if user_id else False
+        }
+        
+        if include_replies:
+            data['replies'] = [
+                reply.to_dict(include_replies=True, user_id=user_id) 
+                for reply in Discussion.query.filter_by(parent_id=self.id, is_hidden=False)
+                .order_by(Discussion.created_at.asc()).all()
+            ]
+        
+        return data
+
+
+class DiscussionLike(db.Model):
+    """Like/dislike tracking for discussions"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    discussion_id = db.Column(db.Integer, db.ForeignKey('discussion.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    is_like = db.Column(db.Boolean, nullable=False)  # True for like, False for dislike
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='discussion_likes')
+    
+    # Unique constraint
+    __table_args__ = (db.UniqueConstraint('discussion_id', 'user_id', name='unique_discussion_like'),)
+    
+    def __repr__(self):
+        return f'<DiscussionLike {self.discussion_id}-{self.user_id}: {"like" if self.is_like else "dislike"}>'
+
+
+class DiscussionReport(db.Model):
+    """Report system for inappropriate discussions"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    discussion_id = db.Column(db.Integer, db.ForeignKey('discussion.id'), nullable=False)
+    reporter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    reason = db.Column(db.String(100), nullable=False)  # spam, inappropriate, spoilers, etc.
+    description = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), default='pending')  # pending, reviewed, resolved, dismissed
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    reviewed_at = db.Column(db.DateTime, nullable=True)
+    reviewed_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    
+    # Relationships
+    reporter = db.relationship('User', foreign_keys=[reporter_id], backref='reported_discussions')
+    reviewer = db.relationship('User', foreign_keys=[reviewed_by], backref='reviewed_reports')
+    
+    def __repr__(self):
+        return f'<DiscussionReport {self.id}: {self.reason}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'discussion_id': self.discussion_id,
+            'reporter': {
+                'id': self.reporter.id,
+                'username': self.reporter.username
+            },
+            'reason': self.reason,
+            'description': self.description,
+            'status': self.status,
+            'created_at': self.created_at.isoformat(),
+            'reviewed_at': self.reviewed_at.isoformat() if self.reviewed_at else None,
+            'reviewer': {
+                'id': self.reviewer.id,
+                'username': self.reviewer.username
+            } if self.reviewer else None
+        }
+
+
+class DiscussionNotification(db.Model):
+    """Notification system for discussion replies and mentions"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    discussion_id = db.Column(db.Integer, db.ForeignKey('discussion.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # User to notify
+    trigger_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # User who triggered notification
+    notification_type = db.Column(db.String(50), nullable=False)  # reply, mention, like
+    is_read = db.Column(db.Boolean, default=False)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    read_at = db.Column(db.DateTime, nullable=True)
+    
+    # Relationships
+    user = db.relationship('User', foreign_keys=[user_id], backref='discussion_notifications')
+    trigger_user = db.relationship('User', foreign_keys=[trigger_user_id], backref='triggered_notifications')
+    
+    def __repr__(self):
+        return f'<DiscussionNotification {self.id}: {self.notification_type}>'
+    
+    def mark_as_read(self):
+        """Mark notification as read"""
+        self.is_read = True
+        self.read_at = datetime.utcnow()
+        db.session.commit()
+    
+    def get_message(self):
+        """Get formatted notification message"""
+        if self.notification_type == 'reply':
+            return f"{self.trigger_user.get_full_name() or self.trigger_user.username} replied to your discussion"
+        elif self.notification_type == 'mention':
+            return f"{self.trigger_user.get_full_name() or self.trigger_user.username} mentioned you in a discussion"
+        elif self.notification_type == 'like':
+            return f"{self.trigger_user.get_full_name() or self.trigger_user.username} liked your discussion"
+        return "New discussion activity"
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'discussion_id': self.discussion_id,
+            'user_id': self.user_id,
+            'trigger_user': {
+                'id': self.trigger_user.id,
+                'username': self.trigger_user.username,
+                'full_name': self.trigger_user.get_full_name(),
+                'profile_picture': self.trigger_user.profile_picture
+            },
+            'notification_type': self.notification_type,
+            'message': self.get_message(),
+            'is_read': self.is_read,
+            'created_at': self.created_at.isoformat(),
+            'read_at': self.read_at.isoformat() if self.read_at else None
+        }
+
+
+class DiscussionSearch(db.Model):
+    """Search index for discussions (simplified full-text search)"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    discussion_id = db.Column(db.Integer, db.ForeignKey('discussion.id'), nullable=False)
+    content_id = db.Column(db.Integer, db.ForeignKey('content.id'), nullable=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=True)
+    search_text = db.Column(db.Text, nullable=False)  # Preprocessed searchable text
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    discussion = db.relationship('Discussion', backref=db.backref('search_index', uselist=False, cascade='all, delete-orphan'))
+    content = db.relationship('Content', backref='discussion_searches')
+    group = db.relationship('Group', backref='discussion_searches')
+    
+    def __repr__(self):
+        return f'<DiscussionSearch {self.discussion_id}>'
+    
+    @staticmethod
+    def create_or_update_for_discussion(discussion):
+        """Create or update search index for a discussion"""
+        search_entry = DiscussionSearch.query.filter_by(discussion_id=discussion.id).first()
+        
+        # Create searchable text
+        search_text_parts = [discussion.message]
+        if discussion.user:
+            search_text_parts.append(discussion.user.username)
+            search_text_parts.append(discussion.user.get_full_name() or '')
+        
+        search_text = ' '.join(search_text_parts).lower()
+        
+        if search_entry:
+            search_entry.search_text = search_text
+            search_entry.updated_at = datetime.utcnow()
+        else:
+            search_entry = DiscussionSearch(
+                discussion_id=discussion.id,
+                content_id=discussion.content_id,
+                group_id=discussion.group_id,
+                search_text=search_text
+            )
+            db.session.add(search_entry)
+        
+        db.session.commit()
+        return search_entry
+    
+    @staticmethod
+    def search_discussions(query, content_id=None, group_id=None, limit=50):
+        """Search discussions by query"""
+        search_query = DiscussionSearch.query
+        
+        if content_id:
+            search_query = search_query.filter_by(content_id=content_id)
+        if group_id:
+            search_query = search_query.filter_by(group_id=group_id)
+        
+        # Simple text search (can be enhanced with full-text search later)
+        search_terms = query.lower().split()
+        for term in search_terms:
+            search_query = search_query.filter(DiscussionSearch.search_text.like(f'%{term}%'))
+        
+        search_results = search_query.limit(limit).all()
+        
+        # Return the actual discussions
+        discussion_ids = [result.discussion_id for result in search_results]
+        return Discussion.query.filter(
+            Discussion.id.in_(discussion_ids),
+            Discussion.is_hidden == False
+        ).order_by(Discussion.created_at.desc()).all()
