@@ -1,27 +1,17 @@
 // WatchTogether JavaScript Functions
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize all components
     initializeApp();
 });
 
 function initializeApp() {
-    // Initialize tooltips
     initializeTooltips();
-    
-    // Initialize form validation
     initializeFormValidation();
-    
-    // Initialize smooth scrolling
     initializeSmoothScrolling();
-    
-    // Initialize fade-in animations
     initializeFadeInAnimations();
-    
-    console.log('WatchTogether app initialized');
+    updateNotificationCount();
 }
 
-// Initialize Bootstrap tooltips
 function initializeTooltips() {
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -29,9 +19,7 @@ function initializeTooltips() {
     });
 }
 
-// Form validation
 function initializeFormValidation() {
-    // Registration form validation
     const registerForm = document.querySelector('#registerForm');
     if (registerForm) {
         registerForm.addEventListener('submit', function(e) {

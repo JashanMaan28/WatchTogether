@@ -1,0 +1,688 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.get_full_name() or user.username }}'s Profile - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-4">
+        <!-- Profile Card -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body text-center">
+                <div class="profile-picture-container mb-3">
+                    <img src="{{ user.get_profile_picture_url() }}" 
+                         alt="{{ user.username }}'s profile picture" 
+                         class="rounded-circle img-fluid profile-picture"
+                         style="width: 150px; height: 150px; object-fit: cover;">
+                </div>
+                
+                <h4 class="card-title mb-1">{{ user.get_full_name() or user.username }}</h4>
+                {% if user.username != user.get_full_name() %}
+                    <p class="text-muted mb-1">@{{ user.username }}</p>
+                {% endif %}
+                
+                {% if user.show_email and not is_own_profile %}
+                    <p class="text-muted small mb-2">{{ user.email }}</p>
+                {% endif %}
+                
+                {% if user.location and user.show_location %}
+                    <p class="text-muted small mb-2">
+                        <i class="bi bi-geo-alt"></i> {{ user.location }}
+                    </p>
+                {% endif %}
+                
+                {% if user.get_age() and user.show_age %}
+                    <p class="text-muted small mb-2">
+                        <i class="bi bi-calendar"></i> {{ user.get_age() }} years old
+                    </p>
+                {% endif %}
+                
+                {% if user.website_url %}
+                    <p class="mb-3">
+                        <a href="{{ user.website_url }}" target="_blank" class="text-decoration-none">
+                            <i class="bi bi-globe"></i> Visit Website
+                        </a>
+                    </p>
+                {% endif %}
+                
+                {% if is_own_profile %}
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('auth.edit_profile') }}" class="btn btn-primary">
+                            <i class="bi bi-pencil-square"></i> Edit Profile
+                        </a>
+                        <a href="{{ url_for('auth.preferences') }}" class="btn btn-outline-primary">
+                            <i class="bi bi-gear"></i> Preferences
+                        </a>
+                    </div>
+                {% else %}
+                    {% if user.allow_friend_requests %}
+                        <div class="d-grid gap-2" id="friendActions">
+                            {% set friendship_status = current_user.get_friendship_status(user) %}
+                            
+                            {% if friendship_status == 'friends' %}
+                                <span class="btn btn-success disabled">
+                                    <i class="bi bi-check-circle"></i> Friends
+                                </span>
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-outline-danger btn-sm" onclick="removeFriend({{ user.id }}, '{{ user.get_full_name() or user.username }}')">
+                                        <i class="bi bi-person-dash"></i> Remove Friend
+                                    </button>
+                                    <button class="btn btn-outline-warning btn-sm" onclick="blockUser({{ user.id }}, '{{ user.get_full_name() or user.username }}')">
+                                        <i class="bi bi-person-slash"></i> Block
+                                    </button>
+                                </div>
+                            
+                            {% elif friendship_status == 'pending_incoming' %}
+                                <span class="btn btn-warning disabled">
+                                    <i class="bi bi-clock"></i> Friend Request Received
+                                </span>
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-success btn-sm" onclick="acceptFriendRequest({{ user.id }}, '{{ user.get_full_name() or user.username }}')">
+                                        <i class="bi bi-check"></i> Accept
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="declineFriendRequest({{ user.id }}, '{{ user.get_full_name() or user.username }}')">
+                                        <i class="bi bi-x"></i> Decline
+                                    </button>
+                                </div>
+                            
+                            {% elif friendship_status == 'pending_outgoing' %}
+                                <span class="btn btn-info disabled">
+                                    <i class="bi bi-arrow-up-circle"></i> Friend Request Sent
+                                </span>
+                                <small class="text-muted">Waiting for response</small>
+                            
+                            {% elif friendship_status == 'blocked' %}
+                                <span class="btn btn-secondary disabled">
+                                    <i class="bi bi-person-slash"></i> Blocked
+                                </span>
+                                <button class="btn btn-outline-success btn-sm" onclick="unblockUser({{ user.id }}, '{{ user.get_full_name() or user.username }}')">
+                                    <i class="bi bi-person-check"></i> Unblock
+                                </button>
+                            
+                            {% else %}
+                                <button class="btn btn-primary" onclick="sendFriendRequest({{ user.id }}, '{{ user.get_full_name() or user.username }}')">
+                                    <i class="bi bi-person-plus"></i> Send Friend Request
+                                </button>
+                                <button class="btn btn-outline-warning btn-sm" onclick="blockUser({{ user.id }}, '{{ user.get_full_name() or user.username }}')">
+                                    <i class="bi bi-person-slash"></i> Block User
+                                </button>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info text-center">
+                            <i class="bi bi-lock"></i> This user doesn't accept friend requests
+                        </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Social Links -->
+        {% set social_links = user.get_social_links() %}
+        {% if social_links %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-share"></i> Social Links</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-center gap-3">
+                    {% if social_links.twitter %}
+                        <a href="{{ social_links.twitter }}" target="_blank" class="text-decoration-none" title="Twitter">
+                            <i class="bi bi-twitter text-info fs-4"></i>
+                        </a>
+                    {% endif %}
+                    {% if social_links.instagram %}
+                        <a href="{{ social_links.instagram }}" target="_blank" class="text-decoration-none" title="Instagram">
+                            <i class="bi bi-instagram text-danger fs-4"></i>
+                        </a>
+                    {% endif %}
+                    {% if social_links.facebook %}
+                        <a href="{{ social_links.facebook }}" target="_blank" class="text-decoration-none" title="Facebook">
+                            <i class="bi bi-facebook text-primary fs-4"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Account Info -->
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Account Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Member Since</label>
+                    <p class="mb-0">{{ user.created_at.strftime('%B %d, %Y') }}</p>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Account Status</label>
+                    <p class="mb-0">
+                        {% if user.is_active %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle"></i> Active
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger">
+                                <i class="bi bi-x-circle"></i> Inactive
+                            </span>
+                        {% endif %}
+                    </p>
+                </div>
+                
+                {% if is_own_profile %}
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Last Login</label>
+                    <p class="mb-0">
+                        {% if user.last_login %}
+                            {{ user.last_login.strftime('%B %d, %Y at %I:%M %p') }}
+                        {% else %}
+                            First time login
+                        {% endif %}
+                    </p>
+                </div>
+                {% endif %}
+                
+                <div class="mb-0">
+                    <label class="form-label fw-semibold">Profile Status</label>
+                    <p class="mb-0">
+                        {% if user.is_profile_public %}
+                            <span class="badge bg-info">
+                                <i class="bi bi-globe"></i> Public
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary">
+                                <i class="bi bi-lock"></i> Private
+                            </span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-8">
+        <!-- Bio Section -->
+        {% if user.bio %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-person-lines-fill"></i> About {{ user.get_full_name() or user.username }}</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ user.bio }}</p>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Preferences -->
+        {% set favorite_genres = user.get_favorite_genres() %}
+        {% set content_types = user.get_content_types() %}
+        {% set viewing_habits = user.get_viewing_habits() %}
+        
+        {% if favorite_genres or content_types %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-heart"></i> Viewing Preferences</h6>
+            </div>
+            <div class="card-body">
+                {% if favorite_genres %}
+                <div class="mb-3">
+                    <h6 class="text-primary">Favorite Genres</h6>
+                    <div class="d-flex flex-wrap gap-1">
+                        {% for genre in favorite_genres %}
+                            <span class="badge bg-primary">{{ genre.title() }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if content_types %}
+                <div class="mb-3">
+                    <h6 class="text-success">Content Types</h6>
+                    <div class="d-flex flex-wrap gap-1">
+                        {% for content_type in content_types %}
+                            <span class="badge bg-success">{{ content_type.replace('_', ' ').title() }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if viewing_habits %}
+                <div class="mb-0">
+                    <h6 class="text-info">Viewing Habits</h6>
+                    <div class="row">
+                        {% if viewing_habits.preferred_viewing_time %}
+                        <div class="col-sm-6 mb-2">
+                            <small class="text-muted">Preferred Time:</small><br>
+                            <span class="badge bg-info">{{ viewing_habits.preferred_viewing_time.replace('_', ' ').title() }}</span>
+                        </div>
+                        {% endif %}
+                        {% if viewing_habits.preferred_duration %}
+                        <div class="col-sm-6 mb-2">
+                            <small class="text-muted">Duration:</small><br>
+                            <span class="badge bg-info">{{ viewing_habits.preferred_duration.title() }}</span>
+                        </div>
+                        {% endif %}
+                        {% if viewing_habits.binge_watcher %}
+                        <div class="col-sm-6 mb-2">
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-tv"></i> Binge Watcher
+                            </span>
+                        </div>
+                        {% endif %}
+                        {% if viewing_habits.subtitles_preference %}
+                        <div class="col-sm-6 mb-2">
+                            <span class="badge bg-secondary">
+                                <i class="bi bi-chat-square-text"></i> Prefers Subtitles
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Compatibility Section (only for other users) -->
+        {% if not is_own_profile %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-heart-half"></i> Compatibility</h6>
+            </div>
+            <div class="card-body">
+                {% set user_genres = current_user.get_favorite_genres() %}
+                {% set user_content_types = current_user.get_content_types() %}
+                {% set common_genres = [] %}
+                {% set common_content_types = [] %}
+                
+                {% if favorite_genres and user_genres %}
+                    {% for genre in favorite_genres %}
+                        {% if genre in user_genres %}
+                            {% set _ = common_genres.append(genre) %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                
+                {% if content_types and user_content_types %}
+                    {% for content_type in content_types %}
+                        {% if content_type in user_content_types %}
+                            {% set _ = common_content_types.append(content_type) %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                
+                {% if common_genres %}
+                    <div class="mb-3">
+                        <h6 class="text-success">
+                            <i class="bi bi-check-circle"></i> Shared Favorite Genres
+                        </h6>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for genre in common_genres %}
+                                <span class="badge bg-success">{{ genre.title() }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+                
+                {% if common_content_types %}
+                    <div class="mb-3">
+                        <h6 class="text-info">
+                            <i class="bi bi-check-circle"></i> Shared Content Types
+                        </h6>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for content_type in common_content_types %}
+                                <span class="badge bg-info">{{ content_type.replace('_', ' ').title() }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+                
+                {% if not common_genres and not common_content_types %}
+                    <div class="text-center text-muted">
+                        <i class="bi bi-question-circle fs-3"></i>
+                        <p class="mt-2">No shared preferences found. Why not explore something new together?</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Action Cards -->
+        {% if not is_own_profile %}
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-lightning"></i> Connect</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card border-0 bg-light h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-chat-dots text-primary" style="font-size: 2rem;"></i>
+                                <h6 class="mt-2">Start Conversation</h6>
+                                <p class="small text-muted">Send a message to connect</p>
+                                <button class="btn btn-sm btn-outline-primary" onclick="sendMessage({{ user.id }})">
+                                    <i class="bi bi-chat"></i> Message
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if user.allow_friend_requests %}
+                    <div class="col-md-6">
+                        <div class="card border-0 bg-light h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-people text-success" style="font-size: 2rem;"></i>
+                                <h6 class="mt-2">Add Friend</h6>
+                                <p class="small text-muted">Send a friend request</p>
+                                <button class="btn btn-sm btn-outline-success" onclick="sendFriendRequest({{ user.id }})">
+                                    <i class="bi bi-person-plus"></i> Add Friend
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mt-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Home</a></li>
+        {% if not is_own_profile %}
+            <li class="breadcrumb-item"><a href="{{ url_for('auth.search_users') }}">Search Users</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active" aria-current="page">
+            {{ user.get_full_name() or user.username }}'s Profile
+        </li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Show loading modal
+function showLoading() {
+    let loadingModal = document.getElementById('loadingModal');
+    if (!loadingModal) {
+        const modalHtml = `
+            <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-sm modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-body text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="mt-2">Processing...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        loadingModal = document.getElementById('loadingModal');
+    }
+    new bootstrap.Modal(loadingModal).show();
+}
+
+// Hide loading modal
+function hideLoading() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+    if (modal) modal.hide();
+}
+
+// Show toast notification
+function showToast(message, type = 'success') {
+    const toastHtml = `
+        <div class="toast align-items-center text-white bg-${type} border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+    
+    let toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '1055';
+        document.body.appendChild(toastContainer);
+    }
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    const toastElement = toastContainer.lastElementChild;
+    new bootstrap.Toast(toastElement).show();
+    
+    // Remove toast after it's hidden
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+    });
+}
+
+// Send friend request
+function sendFriendRequest(userId, userName) {
+    showLoading();
+    
+    fetch('/auth/api/friend-request/send', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showToast(`Friend request sent to ${userName}!`, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(data.message || 'Failed to send friend request', 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        showToast('An error occurred', 'danger');
+    });
+}
+
+// Accept friend request
+function acceptFriendRequest(userId, userName) {
+    showLoading();
+    
+    fetch('/auth/api/friend-request/accept', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showToast(`You are now friends with ${userName}!`, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(data.message || 'Failed to accept friend request', 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        showToast('An error occurred', 'danger');
+    });
+}
+
+// Decline friend request
+function declineFriendRequest(userId, userName) {
+    showLoading();
+    
+    fetch('/auth/api/friend-request/decline', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showToast('Friend request declined', 'info');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(data.message || 'Failed to decline friend request', 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        showToast('An error occurred', 'danger');
+    });
+}
+
+// Remove friend
+function removeFriend(userId, userName) {
+    if (!confirm(`Are you sure you want to remove ${userName} from your friends?`)) {
+        return;
+    }
+    
+    showLoading();
+    
+    fetch('/auth/api/friend/remove', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showToast(`${userName} has been removed from your friends`, 'info');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(data.message || 'Failed to remove friend', 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        showToast('An error occurred', 'danger');
+    });
+}
+
+// Block user
+function blockUser(userId, userName) {
+    if (!confirm(`Are you sure you want to block ${userName}?`)) {
+        return;
+    }
+    
+    showLoading();
+    
+    fetch('/auth/api/user/block', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showToast(`${userName} has been blocked`, 'warning');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(data.message || 'Failed to block user', 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        showToast('An error occurred', 'danger');
+    });
+}
+
+// Unblock user
+function unblockUser(userId, userName) {
+    showLoading();
+    
+    fetch('/auth/api/user/unblock', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showToast(`${userName} has been unblocked`, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(data.message || 'Failed to unblock user', 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        showToast('An error occurred', 'danger');
+    });
+}
+
+function sendMessage(userId) {
+    // Placeholder for messaging functionality
+    alert('Messaging feature coming soon!');
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-picture {
+        border: 4px solid #f8f9fa;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease;
+    }
+    
+    .profile-picture:hover {
+        transform: scale(1.05);
+    }
+    
+    .badge {
+        font-size: 0.75em;
+    }
+    
+    .card {
+        transition: box-shadow 0.2s ease;
+    }
+    
+    .card:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+    
+    .bg-light .card-body {
+        transition: transform 0.2s ease;
+    }
+    
+    .bg-light:hover .card-body {
+        transform: translateY(-2px);
+    }
+    
+    .breadcrumb {
+        background-color: transparent;
+        padding: 0;
+    }
+    
+    .breadcrumb-item + .breadcrumb-item::before {
+        content: ">";
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Settings - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-6 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="bi bi-shield-lock"></i> Privacy Settings
+                    </h4>
+                    <p class="mb-0 small opacity-75">Control who can see your information and how others can interact with you</p>
+                </div>
+                
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Profile Visibility -->
+                        <div class="section-header mb-4">
+                            <h5 class="text-primary border-bottom pb-2">
+                                <i class="bi bi-eye"></i> Profile Visibility
+                            </h5>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div class="form-check form-switch">
+                                        {{ form.is_profile_public(class="form-check-input") }}
+                                        {{ form.is_profile_public.label(class="form-check-label fw-semibold") }}
+                                    </div>
+                                    <div class="form-text mt-2">
+                                        <strong>Public:</strong> Anyone can find and view your profile<br>
+                                        <strong>Private:</strong> Only you can see your full profile
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Information Display -->
+                        <div class="section-header mb-4">
+                            <h5 class="text-success border-bottom pb-2">
+                                <i class="bi bi-info-circle"></i> Information Display
+                            </h5>
+                            <div class="form-text">Choose what information to show on your public profile</div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card bg-light h-100">
+                                    <div class="card-body">
+                                        <div class="form-check form-switch">
+                                            {{ form.show_email(class="form-check-input") }}
+                                            {{ form.show_email.label(class="form-check-label fw-semibold") }}
+                                        </div>
+                                        <div class="form-text mt-2">
+                                            <i class="bi bi-envelope text-muted"></i> Display your email address on your profile
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light h-100">
+                                    <div class="card-body">
+                                        <div class="form-check form-switch">
+                                            {{ form.show_location(class="form-check-input") }}
+                                            {{ form.show_location.label(class="form-check-label fw-semibold") }}
+                                        </div>
+                                        <div class="form-text mt-2">
+                                            <i class="bi bi-geo-alt text-muted"></i> Show your location to other users
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card bg-light h-100">
+                                    <div class="card-body">
+                                        <div class="form-check form-switch">
+                                            {{ form.show_age(class="form-check-input") }}
+                                            {{ form.show_age.label(class="form-check-label fw-semibold") }}
+                                        </div>
+                                        <div class="form-text mt-2">
+                                            <i class="bi bi-calendar text-muted"></i> Display your age (calculated from date of birth)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light h-100">
+                                    <div class="card-body">
+                                        <div class="form-check form-switch">
+                                            {{ form.allow_friend_requests(class="form-check-input") }}
+                                            {{ form.allow_friend_requests.label(class="form-check-label fw-semibold") }}
+                                        </div>
+                                        <div class="form-text mt-2">
+                                            <i class="bi bi-people text-muted"></i> Allow other users to send you friend requests
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Privacy Tips -->
+                        <div class="section-header mb-4">
+                            <h5 class="text-info border-bottom pb-2">
+                                <i class="bi bi-lightbulb"></i> Privacy Tips
+                            </h5>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading">
+                                <i class="bi bi-shield-check"></i> Keep Your Account Secure
+                            </h6>
+                            <ul class="mb-0">
+                                <li>Keep your profile private if you prefer limited visibility</li>
+                                <li>Be cautious about sharing personal information like email and location</li>
+                                <li>Regularly review and update your privacy settings</li>
+                                <li>Use a strong, unique password for your account</li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Current Privacy Status -->
+                        <div class="card border-primary mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-graph-up"></i> Current Privacy Status
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-6 col-md-3">
+                                        <div class="privacy-status-item">
+                                            {% if current_user.is_profile_public %}
+                                                <i class="bi bi-globe text-warning fs-3"></i>
+                                                <div class="small mt-1">Public Profile</div>
+                                            {% else %}
+                                                <i class="bi bi-lock text-success fs-3"></i>
+                                                <div class="small mt-1">Private Profile</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <div class="privacy-status-item">
+                                            {% if current_user.show_email %}
+                                                <i class="bi bi-envelope-open text-info fs-3"></i>
+                                                <div class="small mt-1">Email Visible</div>
+                                            {% else %}
+                                                <i class="bi bi-envelope text-muted fs-3"></i>
+                                                <div class="small mt-1">Email Hidden</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <div class="privacy-status-item">
+                                            {% if current_user.show_location %}
+                                                <i class="bi bi-geo-alt text-primary fs-3"></i>
+                                                <div class="small mt-1">Location Shown</div>
+                                            {% else %}
+                                                <i class="bi bi-geo text-muted fs-3"></i>
+                                                <div class="small mt-1">Location Hidden</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <div class="privacy-status-item">
+                                            {% if current_user.allow_friend_requests %}
+                                                <i class="bi bi-people text-success fs-3"></i>
+                                                <div class="small mt-1">Accepting Requests</div>
+                                            {% else %}
+                                                <i class="bi bi-person-x text-danger fs-3"></i>
+                                                <div class="small mt-1">Blocking Requests</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{{ url_for('auth.profile') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to Profile
+                            </a>
+                            {{ form.submit(class="btn btn-warning btn-lg text-dark") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .section-header h5 {
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-check-input:checked {
+        background-color: #ffc107;
+        border-color: #ffc107;
+    }
+    
+    .form-check-label {
+        font-size: 0.95rem;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 15px;
+    }
+    
+    .card-header {
+        border-radius: 15px 15px 0 0 !important;
+    }
+    
+    .btn {
+        border-radius: 8px;
+    }
+    
+    .alert {
+        border-radius: 10px;
+    }
+    
+    .privacy-status-item {
+        padding: 1rem 0;
+    }
+    
+    .privacy-status-item i {
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+    
+    .bg-light {
+        background-color: #f8f9fa !important;
+        border-radius: 10px;
+    }
+    
+    .form-switch .form-check-input {
+        width: 3em;
+        height: 1.5em;
+    }
+    
+    .form-switch .form-check-input:checked {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+</style>
+{% endblock %}

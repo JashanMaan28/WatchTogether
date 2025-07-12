@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}{{ user.username }}'s Profile - WatchTogether{% endblock %}
+{% block title %}{{ user.get_full_name() or user.username }}'s Profile - WatchTogether{% endblock %}
 
 {% block content %}
 <div class="row">
-    <div class="col-md-4">
+    <div class="col-lg-4">
         <!-- Profile Card -->
-        <div class="card shadow-sm">
+        <div class="card shadow-sm mb-4">
             <div class="card-body text-center">
                 <div class="profile-picture-container mb-3">
                     <img src="{{ user.get_profile_picture_url() }}" 
@@ -15,22 +15,85 @@
                          style="width: 150px; height: 150px; object-fit: cover;">
                 </div>
                 
-                <h4 class="card-title mb-1">{{ user.username }}</h4>
-                <p class="text-muted mb-3">{{ user.email }}</p>
+                <h4 class="card-title mb-1">{{ user.get_full_name() or user.username }}</h4>
+                {% if user.username != user.get_full_name() %}
+                    <p class="text-muted mb-1">@{{ user.username }}</p>
+                {% endif %}
                 
-                <div class="d-grid gap-2">
-                    <a href="{{ url_for('auth.edit_profile') }}" class="btn btn-primary">
-                        <i class="bi bi-pencil-square"></i> Edit Profile
-                    </a>
-                    <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline-secondary">
-                        <i class="bi bi-lock"></i> Change Password
-                    </a>
-                </div>
+                {% if user.show_email or user.id == current_user.id %}
+                    <p class="text-muted small mb-2">{{ user.email }}</p>
+                {% endif %}
+                
+                {% if user.location and (user.show_location or user.id == current_user.id) %}
+                    <p class="text-muted small mb-2">
+                        <i class="bi bi-geo-alt"></i> {{ user.location }}
+                    </p>
+                {% endif %}
+                
+                {% if user.get_age() and (user.show_age or user.id == current_user.id) %}
+                    <p class="text-muted small mb-2">
+                        <i class="bi bi-calendar"></i> {{ user.get_age() }} years old
+                    </p>
+                {% endif %}
+                
+                {% if user.website_url %}
+                    <p class="mb-3">
+                        <a href="{{ user.website_url }}" target="_blank" class="text-decoration-none">
+                            <i class="bi bi-globe"></i> Visit Website
+                        </a>
+                    </p>
+                {% endif %}
+                
+                {% if user.id == current_user.id %}
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('auth.edit_profile') }}" class="btn btn-primary">
+                            <i class="bi bi-pencil-square"></i> Edit Profile
+                        </a>
+                        <a href="{{ url_for('auth.preferences') }}" class="btn btn-outline-primary">
+                            <i class="bi bi-gear"></i> Preferences
+                        </a>
+                        <a href="{{ url_for('auth.privacy') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-shield-lock"></i> Privacy
+                        </a>
+                        <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline-warning">
+                            <i class="bi bi-lock"></i> Security
+                        </a>
+                    </div>
+                {% endif %}
             </div>
         </div>
         
+        <!-- Social Links -->
+        {% set social_links = user.get_social_links() %}
+        {% if social_links %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-share"></i> Social Links</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-center gap-3">
+                    {% if social_links.twitter %}
+                        <a href="{{ social_links.twitter }}" target="_blank" class="text-decoration-none">
+                            <i class="bi bi-twitter text-info fs-4"></i>
+                        </a>
+                    {% endif %}
+                    {% if social_links.instagram %}
+                        <a href="{{ social_links.instagram }}" target="_blank" class="text-decoration-none">
+                            <i class="bi bi-instagram text-danger fs-4"></i>
+                        </a>
+                    {% endif %}
+                    {% if social_links.facebook %}
+                        <a href="{{ social_links.facebook }}" target="_blank" class="text-decoration-none">
+                            <i class="bi bi-facebook text-primary fs-4"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
         <!-- Account Info -->
-        <div class="card shadow-sm mt-4">
+        <div class="card shadow-sm">
             <div class="card-header">
                 <h6 class="mb-0"><i class="bi bi-info-circle"></i> Account Information</h6>
             </div>
@@ -39,6 +102,24 @@
                     <label class="form-label fw-semibold">Member Since</label>
                     <p class="mb-0">{{ user.created_at.strftime('%B %d, %Y') }}</p>
                 </div>
+                
+                {% if user.id == current_user.id %}
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Last Login</label>
+                    <p class="mb-0">
+                        {% if user.last_login %}
+                            {{ user.last_login.strftime('%B %d, %Y at %I:%M %p') }}
+                        {% else %}
+                            First time login
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Total Logins</label>
+                    <p class="mb-0">{{ user.login_count or 0 }}</p>
+                </div>
+                {% endif %}
                 
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Account Status</label>
@@ -56,55 +137,194 @@
                 </div>
                 
                 <div class="mb-0">
-                    <label class="form-label fw-semibold">User ID</label>
-                    <p class="mb-0 text-muted font-monospace">#{{ user.id }}</p>
+                    <label class="form-label fw-semibold">Profile Status</label>
+                    <p class="mb-0">
+                        {% if user.is_profile_public %}
+                            <span class="badge bg-info">
+                                <i class="bi bi-globe"></i> Public
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary">
+                                <i class="bi bi-lock"></i> Private
+                            </span>
+                        {% endif %}
+                    </p>
                 </div>
             </div>
         </div>
     </div>
     
-    <div class="col-md-8">
-        <!-- Welcome Section -->
-        <div class="card shadow-sm">
+    <div class="col-lg-8">
+        <!-- Bio Section -->
+        {% if user.bio %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-person-lines-fill"></i> About</h6>
+            </div>
             <div class="card-body">
-                <h3 class="card-title">
-                    Welcome back, {{ user.username }}! 
-                    <i class="bi bi-emoji-smile text-primary"></i>
-                </h3>
-                <p class="card-text text-muted">
-                    Here's your profile dashboard where you can manage your account settings and preferences.
-                </p>
+                <p class="mb-0">{{ user.bio }}</p>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Preferences -->
+        {% set favorite_genres = user.get_favorite_genres() %}
+        {% set content_types = user.get_content_types() %}
+        {% set viewing_habits = user.get_viewing_habits() %}
+        
+        {% if favorite_genres or content_types %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-heart"></i> Preferences</h6>
+            </div>
+            <div class="card-body">
+                {% if favorite_genres %}
+                <div class="mb-3">
+                    <h6 class="text-primary">Favorite Genres</h6>
+                    <div class="d-flex flex-wrap gap-1">
+                        {% for genre in favorite_genres %}
+                            <span class="badge bg-primary">{{ genre.title() }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if content_types %}
+                <div class="mb-3">
+                    <h6 class="text-success">Content Types</h6>
+                    <div class="d-flex flex-wrap gap-1">
+                        {% for content_type in content_types %}
+                            <span class="badge bg-success">{{ content_type.replace('_', ' ').title() }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if viewing_habits %}
+                <div class="mb-0">
+                    <h6 class="text-info">Viewing Habits</h6>
+                    <div class="row">
+                        {% if viewing_habits.preferred_viewing_time %}
+                        <div class="col-sm-6 mb-2">
+                            <small class="text-muted">Preferred Time:</small><br>
+                            <span class="badge bg-info">{{ viewing_habits.preferred_viewing_time.replace('_', ' ').title() }}</span>
+                        </div>
+                        {% endif %}
+                        {% if viewing_habits.preferred_duration %}
+                        <div class="col-sm-6 mb-2">
+                            <small class="text-muted">Duration:</small><br>
+                            <span class="badge bg-info">{{ viewing_habits.preferred_duration.title() }}</span>
+                        </div>
+                        {% endif %}
+                        {% if viewing_habits.binge_watcher %}
+                        <div class="col-sm-6 mb-2">
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-tv"></i> Binge Watcher
+                            </span>
+                        </div>
+                        {% endif %}
+                        {% if viewing_habits.subtitles_preference %}
+                        <div class="col-sm-6 mb-2">
+                            <span class="badge bg-secondary">
+                                <i class="bi bi-chat-square-text"></i> Prefers Subtitles
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Profile Completion -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-graph-up"></i> Profile Status</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Profile Completion</span>
+                    <span class="fw-bold">
+                        {% if user.is_profile_complete() %}
+                            <span class="text-success">Complete</span>
+                        {% else %}
+                            <span class="text-warning">Incomplete</span>
+                        {% endif %}
+                    </span>
+                </div>
+                
+                {% set completion_items = [
+                    ('Basic Info', user.first_name and user.bio),
+                    ('Profile Picture', user.profile_picture != 'default.jpg'),
+                    ('Preferences', user.get_favorite_genres() or user.get_content_types()),
+                    ('Location', user.location)
+                ] %}
+                
+                {% set completed_items = completion_items | selectattr('1') | list %}
+                {% set completion_percentage = (completed_items | length / completion_items | length * 100) | round %}
+                
+                <div class="progress mb-3" style="height: 6px;">
+                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ completion_percentage }}%"></div>
+                </div>
+                
+                <div class="row">
+                    {% for item, is_complete in completion_items %}
+                    <div class="col-6 mb-2">
+                        {% if is_complete %}
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                        {% else %}
+                            <i class="bi bi-circle text-muted"></i>
+                        {% endif %}
+                        <small class="ms-1">{{ item }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
         
+        {% if user.id == current_user.id %}
         <!-- Quick Actions -->
-        <div class="card shadow-sm mt-4">
+        <div class="card shadow-sm">
             <div class="card-header">
                 <h6 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h6>
             </div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="card border-0 bg-light h-100">
                             <div class="card-body text-center">
-                                <i class="bi bi-gear text-primary" style="font-size: 2rem;"></i>
-                                <h6 class="mt-2">Account Settings</h6>
-                                <p class="small text-muted">Update your profile information and preferences</p>
-                                <a href="{{ url_for('auth.edit_profile') }}" class="btn btn-sm btn-outline-primary">
-                                    Manage Settings
+                                <i class="bi bi-search text-primary" style="font-size: 2rem;"></i>
+                                <h6 class="mt-2">Find Users</h6>
+                                <p class="small text-muted">Search for other users to connect with</p>
+                                <a href="{{ url_for('auth.search_users') }}" class="btn btn-sm btn-outline-primary">
+                                    Search Users
                                 </a>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="card border-0 bg-light h-100">
                             <div class="card-body text-center">
-                                <i class="bi bi-shield-lock text-success" style="font-size: 2rem;"></i>
-                                <h6 class="mt-2">Security</h6>
-                                <p class="small text-muted">Change your password and security settings</p>
-                                <a href="{{ url_for('auth.change_password') }}" class="btn btn-sm btn-outline-success">
-                                    Update Security
+                                <i class="bi bi-gear text-success" style="font-size: 2rem;"></i>
+                                <h6 class="mt-2">Preferences</h6>
+                                <p class="small text-muted">Set your viewing preferences and interests</p>
+                                <a href="{{ url_for('auth.preferences') }}" class="btn btn-sm btn-outline-success">
+                                    Manage Preferences
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card border-0 bg-light h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-shield-lock text-warning" style="font-size: 2rem;"></i>
+                                <h6 class="mt-2">Privacy</h6>
+                                <p class="small text-muted">Control your privacy and visibility settings</p>
+                                <a href="{{ url_for('auth.privacy') }}" class="btn btn-sm btn-outline-warning">
+                                    Privacy Settings
                                 </a>
                             </div>
                         </div>
@@ -112,74 +332,7 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Activity Summary -->
-        <div class="card shadow-sm mt-4">
-            <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-activity"></i> Account Summary</h6>
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-md-4">
-                        <div class="border-end">
-                            <h4 class="text-primary mb-1">0</h4>
-                            <small class="text-muted">Days as Member</small>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="border-end">
-                            <h4 class="text-success mb-1">
-                                <i class="bi bi-check-circle"></i>
-                            </h4>
-                            <small class="text-muted">Verified Account</small>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <h4 class="text-info mb-1">
-                            <i class="bi bi-person-circle"></i>
-                        </h4>
-                        <small class="text-muted">Profile Complete</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Recent Activity -->
-        <div class="card shadow-sm mt-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="bi bi-clock-history"></i> Recent Activity</h6>
-                <small class="text-muted">Last 7 days</small>
-            </div>
-            <div class="card-body">
-                <div class="timeline">
-                    <div class="d-flex align-items-start mb-3">
-                        <div class="flex-shrink-0">
-                            <div class="bg-primary rounded-circle p-2">
-                                <i class="bi bi-person-check text-white"></i>
-                            </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="mb-1">Account Login</h6>
-                            <p class="text-muted small mb-0">You signed in to your account</p>
-                            <small class="text-muted">Today</small>
-                        </div>
-                    </div>
-                    
-                    <div class="d-flex align-items-start mb-3">
-                        <div class="flex-shrink-0">
-                            <div class="bg-success rounded-circle p-2">
-                                <i class="bi bi-person-plus text-white"></i>
-                            </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="mb-1">Account Created</h6>
-                            <p class="text-muted small mb-0">You joined WatchTogether</p>
-                            <small class="text-muted">{{ user.created_at.strftime('%B %d, %Y') }}</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -189,20 +342,35 @@
     .profile-picture {
         border: 4px solid #f8f9fa;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease;
     }
     
-    .timeline {
-        position: relative;
+    .profile-picture:hover {
+        transform: scale(1.05);
     }
     
-    .timeline::before {
-        content: '';
-        position: absolute;
-        left: 15px;
-        top: 0;
-        bottom: 0;
-        width: 2px;
-        background: #e9ecef;
+    .badge {
+        font-size: 0.75em;
+    }
+    
+    .card {
+        transition: box-shadow 0.2s ease;
+    }
+    
+    .card:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+    
+    .progress {
+        border-radius: 3px;
+    }
+    
+    .bg-light .card-body {
+        transition: transform 0.2s ease;
+    }
+    
+    .bg-light:hover .card-body {
+        transform: translateY(-2px);
     }
 </style>
 {% endblock %}

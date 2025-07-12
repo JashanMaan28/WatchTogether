@@ -3,6 +3,7 @@ from flask_login import UserMixin
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 import re
+import json
 
 class User(UserMixin, db.Model):
     """User model for authentication and user management"""
@@ -16,6 +17,30 @@ class User(UserMixin, db.Model):
     bio = db.Column(db.Text, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     
+    # profile fields
+    first_name = db.Column(db.String(50), nullable=True)
+    last_name = db.Column(db.String(50), nullable=True)
+    location = db.Column(db.String(100), nullable=True)
+    date_of_birth = db.Column(db.Date, nullable=True)
+    favorite_genres = db.Column(db.Text, nullable=True)  # JSON string
+    content_types = db.Column(db.Text, nullable=True)    # JSON string
+    viewing_habits = db.Column(db.Text, nullable=True)   # JSON string
+    
+    # Privacy settings
+    is_profile_public = db.Column(db.Boolean, default=True)
+    show_email = db.Column(db.Boolean, default=False)
+    show_location = db.Column(db.Boolean, default=True)
+    show_age = db.Column(db.Boolean, default=False)
+    allow_friend_requests = db.Column(db.Boolean, default=True)
+    
+    # Social features
+    website_url = db.Column(db.String(200), nullable=True)
+    social_links = db.Column(db.Text, nullable=True)  # JSON string
+    
+    # Activity tracking
+    last_login = db.Column(db.DateTime, nullable=True)
+    login_count = db.Column(db.Integer, default=0)
+    
     def __repr__(self):
         return f'<User {self.username}>'
     
@@ -26,6 +51,121 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         """Check if the provided password matches the user's password"""
         return check_password_hash(self.password_hash, password)
+    
+    # Profile data helpers
+    def get_favorite_genres(self):
+        """Get favorite genres as a list"""
+        if self.favorite_genres:
+            try:
+                return json.loads(self.favorite_genres)
+            except json.JSONDecodeError:
+                return []
+        return []
+    
+    def set_favorite_genres(self, genres_list):
+        """Set favorite genres from a list"""
+        if genres_list:
+            self.favorite_genres = json.dumps(genres_list)
+        else:
+            self.favorite_genres = None
+    
+    def get_content_types(self):
+        """Get preferred content types as a list"""
+        if self.content_types:
+            try:
+                return json.loads(self.content_types)
+            except json.JSONDecodeError:
+                return []
+        return []
+    
+    def set_content_types(self, types_list):
+        """Set content types from a list"""
+        if types_list:
+            self.content_types = json.dumps(types_list)
+        else:
+            self.content_types = None
+    
+    def get_viewing_habits(self):
+        """Get viewing habits as a dictionary"""
+        if self.viewing_habits:
+            try:
+                return json.loads(self.viewing_habits)
+            except json.JSONDecodeError:
+                return {}
+        return {}
+    
+    def set_viewing_habits(self, habits_dict):
+        """Set viewing habits from a dictionary"""
+        if habits_dict:
+            self.viewing_habits = json.dumps(habits_dict)
+        else:
+            self.viewing_habits = None
+    
+    def get_social_links(self):
+        """Get social links as a dictionary"""
+        if self.social_links:
+            try:
+                return json.loads(self.social_links)
+            except json.JSONDecodeError:
+                return {}
+        return {}
+    
+    def set_social_links(self, links_dict):
+        """Set social links from a dictionary"""
+        if links_dict:
+            self.social_links = json.dumps(links_dict)
+        else:
+            self.social_links = None
+    
+    def get_full_name(self):
+        """Get user's full name"""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        elif self.first_name:
+            return self.first_name
+        elif self.last_name:
+            return self.last_name
+        return self.username
+    
+    def get_age(self):
+        """Calculate user's age from date of birth"""
+        if self.date_of_birth:
+            today = datetime.now().date()
+            return today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
+        return None
+    
+    def is_profile_complete(self):
+        """Check if profile is reasonably complete"""
+        required_fields = [self.first_name, self.bio]
+        optional_fields = [self.location, self.favorite_genres]
+        
+        required_complete = all(field for field in required_fields)
+        optional_complete = any(field for field in optional_fields)
+        
+        return required_complete and optional_complete
+    
+    def update_login_info(self):
+        """Update login tracking information"""
+        self.last_login = datetime.utcnow()
+        self.login_count += 1
+    
+    @classmethod
+    def search_users(cls, query, current_user_id=None):
+        """Search for users by username, first name, or last name"""
+        search_query = f"%{query}%"
+        users = cls.query.filter(
+            db.and_(
+                cls.is_active == True,
+                cls.is_profile_public == True,
+                cls.id != current_user_id,  # Exclude current user
+                db.or_(
+                    cls.username.ilike(search_query),
+                    cls.first_name.ilike(search_query),
+                    cls.last_name.ilike(search_query)
+                )
+            )
+        ).limit(20).all()
+        return users
     
     @staticmethod
     def validate_username(username):
@@ -79,3 +219,366 @@ class User(UserMixin, db.Model):
         if self.profile_picture and self.profile_picture != 'default.jpg':
             return f'/static/uploads/profile_pics/{self.profile_picture}'
         return '/static/images/default_avatar.svg'
+
+    # Friend-related methods
+    def send_friend_request(self, user):
+        """Send a friend request to another user"""
+        if not user.allow_friend_requests:
+            return False, "User is not accepting friend requests"
+        
+        if user.id == self.id:
+            return False, "You cannot send a friend request to yourself"
+        
+        existing_friendship = Friendship.get_friendship(self.id, user.id)
+        if existing_friendship:
+            if existing_friendship.status == 'pending':
+                return False, "Friend request already sent"
+            elif existing_friendship.status == 'accepted':
+                return False, "You are already friends"
+            elif existing_friendship.status == 'blocked':
+                return False, "Unable to send friend request"
+        
+        # Create friendship
+        friendship = Friendship(
+            requester_id=self.id,
+            addressee_id=user.id,
+            status='pending'
+        )
+        
+        # Create notification
+        notification = Notification.create_friend_request_notification(user.id, self)
+        
+        try:
+            db.session.add(friendship)
+            db.session.add(notification)
+            db.session.commit()
+            return True, "Friend request sent successfully"
+        except Exception as e:
+            db.session.rollback()
+            return False, "Failed to send friend request"
+    
+    def accept_friend_request(self, requester):
+        """Accept a friend request from another user"""
+        friendship = Friendship.query.filter_by(
+            requester_id=requester.id,
+            addressee_id=self.id,
+            status='pending'
+        ).first()
+        
+        if not friendship:
+            return False, "No pending friend request found"
+        
+        try:
+            # Update friendship status
+            friendship.status = 'accepted'
+            friendship.updated_at = datetime.utcnow()
+            
+            # Create notification for requester
+            notification = Notification.create_friend_accepted_notification(requester.id, self)
+            
+            # Add both to session and commit
+            db.session.add(friendship)  # Explicitly add the updated friendship
+            db.session.add(notification)
+            db.session.commit()
+            return True, "Friend request accepted"
+        except Exception as e:
+            db.session.rollback()
+            return False, f"Failed to accept friend request: {str(e)}"
+    
+    def decline_friend_request(self, requester):
+        """Decline a friend request from another user"""
+        friendship = Friendship.query.filter_by(
+            requester_id=requester.id,
+            addressee_id=self.id,
+            status='pending'
+        ).first()
+        
+        if not friendship:
+            return False, "No pending friend request found"
+        
+        try:
+            # Update friendship status
+            friendship.status = 'declined'
+            friendship.updated_at = datetime.utcnow()
+            
+            # Explicitly add the updated friendship to session
+            db.session.add(friendship)
+            db.session.commit()
+            return True, "Friend request declined"
+        except Exception as e:
+            db.session.rollback()
+            return False, f"Failed to decline friend request: {str(e)}"
+    
+    def remove_friend(self, friend):
+        """Remove a friend (unfriend)"""
+        friendship = Friendship.get_friendship(self.id, friend.id)
+        
+        if not friendship or friendship.status != 'accepted':
+            return False, "You are not friends with this user"
+        
+        try:
+            db.session.delete(friendship)
+            db.session.commit()
+            return True, "Friend removed successfully"
+        except Exception as e:
+            db.session.rollback()
+            return False, "Failed to remove friend"
+    
+    def block_user(self, user):
+        """Block a user"""
+        friendship = Friendship.get_friendship(self.id, user.id)
+        
+        if friendship:
+            friendship.status = 'blocked'
+            friendship.updated_at = datetime.utcnow()
+            # Make sure current user is the one doing the blocking
+            if friendship.requester_id != self.id:
+                friendship.requester_id = self.id
+                friendship.addressee_id = user.id
+        else:
+            friendship = Friendship(
+                requester_id=self.id,
+                addressee_id=user.id,
+                status='blocked'
+            )
+            db.session.add(friendship)
+        
+        try:
+            db.session.commit()
+            return True, "User blocked successfully"
+        except Exception as e:
+            db.session.rollback()
+            return False, "Failed to block user"
+    
+    def unblock_user(self, user):
+        """Unblock a user"""
+        friendship = Friendship.query.filter_by(
+            requester_id=self.id,
+            addressee_id=user.id,
+            status='blocked'
+        ).first()
+        
+        if not friendship:
+            return False, "User is not blocked"
+        
+        try:
+            db.session.delete(friendship)
+            db.session.commit()
+            return True, "User unblocked successfully"
+        except Exception as e:
+            db.session.rollback()
+            return False, "Failed to unblock user"
+    
+    def get_friends(self):
+        """Get list of all friends"""
+        friends_as_requester = db.session.query(User).join(
+            Friendship, User.id == Friendship.addressee_id
+        ).filter(
+            Friendship.requester_id == self.id,
+            Friendship.status == 'accepted'
+        ).all()
+        
+        friends_as_addressee = db.session.query(User).join(
+            Friendship, User.id == Friendship.requester_id
+        ).filter(
+            Friendship.addressee_id == self.id,
+            Friendship.status == 'accepted'
+        ).all()
+        
+        return list(set(friends_as_requester + friends_as_addressee))
+    
+    def get_pending_friend_requests(self):
+        """Get list of pending friend requests received"""
+        return db.session.query(User).join(
+            Friendship, User.id == Friendship.requester_id
+        ).filter(
+            Friendship.addressee_id == self.id,
+            Friendship.status == 'pending'
+        ).all()
+    
+    def get_sent_friend_requests(self):
+        """Get list of sent friend requests that are still pending"""
+        return db.session.query(User).join(
+            Friendship, User.id == Friendship.addressee_id
+        ).filter(
+            Friendship.requester_id == self.id,
+            Friendship.status == 'pending'
+        ).all()
+    
+    def get_blocked_users(self):
+        """Get list of blocked users"""
+        return db.session.query(User).join(
+            Friendship, User.id == Friendship.addressee_id
+        ).filter(
+            Friendship.requester_id == self.id,
+            Friendship.status == 'blocked'
+        ).all()
+    
+    def get_unread_notifications_count(self):
+        """Get count of unread notifications"""
+        return Notification.query.filter_by(
+            user_id=self.id,
+            is_read=False
+        ).count()
+    
+    def get_friendship_status(self, user):
+        """Get friendship status with another user for template usage"""
+        friendship = Friendship.get_friendship(self.id, user.id)
+        
+        if not friendship:
+            return None
+        
+        if friendship.status == 'accepted':
+            return 'friends'
+        elif friendship.status == 'pending':
+            if friendship.requester_id == self.id:
+                return 'pending_outgoing'
+            else:
+                return 'pending_incoming'
+        elif friendship.status == 'blocked':
+            if friendship.requester_id == self.id:
+                return 'blocked'
+            else:
+                return 'blocked_by'
+        
+        return None
+
+    def get_friendship_status_with(self, user):
+        """Get friendship status with another user for template usage"""
+        friendship = Friendship.get_friendship(self.id, user.id)
+        
+        if not friendship:
+            return None
+        
+        if friendship.status == 'accepted':
+            return 'friends'
+        elif friendship.status == 'pending':
+            if friendship.requester_id == self.id:
+                return 'pending_outgoing'
+            else:
+                return 'pending_incoming'
+        elif friendship.status == 'blocked':
+            if friendship.requester_id == self.id:
+                return 'blocked'
+            else:
+                return 'blocked_by'
+        
+        return None
+
+    def get_friend_status_with(self, user):
+        """Get friendship status with another user"""
+        return Friendship.get_friend_status(self.id, user.id)
+
+class Friendship(db.Model):
+    """Friendship model to handle friend relationships"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    requester_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    addressee_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')  # pending, accepted, blocked, declined
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    requester = db.relationship('User', foreign_keys=[requester_id], backref='sent_friend_requests')
+    addressee = db.relationship('User', foreign_keys=[addressee_id], backref='received_friend_requests')
+    
+    __table_args__ = (db.UniqueConstraint('requester_id', 'addressee_id', name='unique_friendship'),)
+    
+    def __repr__(self):
+        return f'<Friendship {self.requester.username} -> {self.addressee.username}: {self.status}>'
+
+    @staticmethod
+    def get_friendship(user1_id, user2_id):
+        """Get friendship between two users (regardless of who initiated)"""
+        return Friendship.query.filter(
+            db.or_(
+                db.and_(Friendship.requester_id == user1_id, Friendship.addressee_id == user2_id),
+                db.and_(Friendship.requester_id == user2_id, Friendship.addressee_id == user1_id)
+            )
+        ).first()
+    
+    @staticmethod
+    def are_friends(user1_id, user2_id):
+        """Check if two users are friends"""
+        friendship = Friendship.get_friendship(user1_id, user2_id)
+        return friendship and friendship.status == 'accepted'
+    
+    @staticmethod
+    def get_friend_status(user1_id, user2_id):
+        """Get the status of friendship between two users"""
+        friendship = Friendship.get_friendship(user1_id, user2_id)
+        if not friendship:
+            return None
+        return {
+            'status': friendship.status,
+            'is_requester': friendship.requester_id == user1_id,
+            'created_at': friendship.created_at,
+            'updated_at': friendship.updated_at
+        }
+
+class Notification(db.Model):
+    """Notification model for in-app notifications"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    type = db.Column(db.String(50), nullable=False)  # friend_request, friend_accepted, etc.
+    title = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    data = db.Column(db.Text, nullable=True)  # JSON data for additional info
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='notifications')
+    
+    def __repr__(self):
+        return f'<Notification {self.type} for {self.user.username}>'
+    
+    def get_data(self):
+        """Get notification data as dictionary"""
+        if self.data:
+            try:
+                return json.loads(self.data)
+            except json.JSONDecodeError:
+                return {}
+        return {}
+    
+    def set_data(self, data_dict):
+        """Set notification data from dictionary"""
+        if data_dict:
+            self.data = json.dumps(data_dict)
+        else:
+            self.data = None
+    
+    @staticmethod
+    def create_friend_request_notification(addressee_id, requester):
+        """Create a friend request notification"""
+        notification = Notification(
+            user_id=addressee_id,
+            type='friend_request',
+            title='New Friend Request',
+            message=f'{requester.get_full_name() or requester.username} sent you a friend request'
+        )
+        notification.set_data({
+            'requester_id': requester.id,
+            'requester_username': requester.username,
+            'requester_name': requester.get_full_name() or requester.username
+        })
+        return notification
+    
+    @staticmethod
+    def create_friend_accepted_notification(requester_id, accepter):
+        """Create a friend accepted notification"""
+        notification = Notification(
+            user_id=requester_id,
+            type='friend_accepted',
+            title='Friend Request Accepted',
+            message=f'{accepter.get_full_name() or accepter.username} accepted your friend request'
+        )
+        notification.set_data({
+            'friend_id': accepter.id,
+            'friend_username': accepter.username,
+            'friend_name': accepter.get_full_name() or accepter.username
+        })
+        return notification

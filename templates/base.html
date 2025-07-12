@@ -40,6 +40,17 @@
                 
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
+                        <!-- Notifications icon -->
+                        <li class="nav-item me-2">
+                            <a class="nav-link position-relative" href="{{ url_for('auth.notifications') }}" title="Notifications">
+                                <i class="bi bi-bell fs-5"></i>
+                                <span id="notificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">
+                                    <span id="notificationCount">0</span>
+                                    <span class="visually-hidden">unread notifications</span>
+                                </span>
+                            </a>
+                        </li>
+                        
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                                 <img src="{{ current_user.get_profile_picture_url() }}" alt="Profile" class="rounded-circle me-1" width="24" height="24">
@@ -47,12 +58,29 @@
                             </a>
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">
-                                    <i class="bi bi-person"></i> Profile
+                                    <i class="bi bi-person"></i> My Profile
                                 </a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('auth.edit_profile') }}">
-                                    <i class="bi bi-gear"></i> Settings
+                                    <i class="bi bi-pencil-square"></i> Edit Profile
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('auth.preferences') }}">
+                                    <i class="bi bi-gear"></i> Preferences
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('auth.privacy') }}">
+                                    <i class="bi bi-shield-lock"></i> Privacy
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('auth.friends') }}">
+                                    <i class="bi bi-people"></i> Friends
+                                    <span id="friendsNotificationBadge" class="badge bg-primary ms-1 d-none"></span>
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('auth.search_users') }}">
+                                    <i class="bi bi-search"></i> Find Users
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}">
+                                    <i class="bi bi-lock"></i> Change Password
+                                </a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
                                     <i class="bi bi-box-arrow-right"></i> Logout
                                 </a></li>
@@ -102,6 +130,45 @@
     
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    {% if current_user.is_authenticated %}
+    <!-- Notification checking for authenticated users -->
+    <script>
+        // Check for notifications on page load and periodically
+        function checkNotifications() {
+            fetch('/auth/api/notifications/count')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('notificationBadge');
+                    const count = document.getElementById('notificationCount');
+                    const friendsBadge = document.getElementById('friendsNotificationBadge');
+                    
+                    if (data.count > 0) {
+                        count.textContent = data.count;
+                        badge.classList.remove('d-none');
+                        if (friendsBadge) {
+                            friendsBadge.textContent = data.count;
+                            friendsBadge.classList.remove('d-none');
+                        }
+                    } else {
+                        badge.classList.add('d-none');
+                        if (friendsBadge) {
+                            friendsBadge.classList.add('d-none');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking notifications:', error);
+                });
+        }
+        
+        // Check notifications on page load
+        document.addEventListener('DOMContentLoaded', checkNotifications);
+        
+        // Check notifications every 30 seconds
+        setInterval(checkNotifications, 30000);
+    </script>
+    {% endif %}
     
     {% block extra_js %}{% endblock %}
 </body>

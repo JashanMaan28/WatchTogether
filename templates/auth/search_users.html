@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+
+{% block title %}Search Users - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <!-- Search Header -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-search"></i> Find Users
+                    </h4>
+                    <p class="mb-0 small opacity-75">Discover and connect with other members of the WatchTogether community</p>
+                </div>
+                
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() }}
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="form-floating">
+                                    {{ form.search_query(class="form-control form-control-lg", placeholder="Search by username, first name, or last name...") }}
+                                    {{ form.search_query.label(class="form-label") }}
+                                    {% if form.search_query.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.search_query.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.submit(class="btn btn-primary btn-lg w-100 h-100") }}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Search Results -->
+            {% if users %}
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-people"></i> Search Results 
+                            <span class="badge bg-primary">{{ users|length }} found</span>
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="row g-0">
+                            {% for user in users %}
+                                <div class="col-lg-6">
+                                    <div class="user-card p-3 border-bottom border-end h-100">
+                                        <div class="d-flex align-items-start">
+                                            <div class="flex-shrink-0 me-3">
+                                                <img src="{{ user.get_profile_picture_url() }}" 
+                                                     alt="{{ user.username }}'s profile picture" 
+                                                     class="rounded-circle user-avatar"
+                                                     style="width: 60px; height: 60px; object-fit: cover;">
+                                            </div>
+                                            <div class="flex-grow-1 min-w-0">
+                                                <h6 class="mb-1">
+                                                    <a href="{{ url_for('auth.view_profile', user_id=user.id) }}" class="text-decoration-none">
+                                                        {{ user.get_full_name() or user.username }}
+                                                    </a>
+                                                </h6>
+                                                
+                                                {% if user.username != user.get_full_name() %}
+                                                    <p class="text-muted small mb-1">@{{ user.username }}</p>
+                                                {% endif %}
+                                                
+                                                {% if user.location and user.show_location %}
+                                                    <p class="text-muted small mb-1">
+                                                        <i class="bi bi-geo-alt"></i> {{ user.location }}
+                                                    </p>
+                                                {% endif %}
+                                                
+                                                {% if user.bio %}
+                                                    <p class="text-muted small mb-2">{{ user.bio[:80] }}{% if user.bio|length > 80 %}...{% endif %}</p>
+                                                {% endif %}
+                                                
+                                                <!-- User Preferences Preview -->
+                                                {% set favorite_genres = user.get_favorite_genres() %}
+                                                {% if favorite_genres %}
+                                                    <div class="mb-2">
+                                                        {% for genre in favorite_genres[:3] %}
+                                                            <span class="badge bg-primary me-1">{{ genre.title() }}</span>
+                                                        {% endfor %}
+                                                        {% if favorite_genres|length > 3 %}
+                                                            <span class="badge bg-secondary">+{{ favorite_genres|length - 3 }} more</span>
+                                                        {% endif %}
+                                                    </div>
+                                                {% endif %}
+                                                
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <small class="text-muted">
+                                                        <i class="bi bi-calendar"></i> Joined {{ user.created_at.strftime('%b %Y') }}
+                                                    </small>
+                                                    <div class="btn-group" role="group">
+                                                        {% if user != current_user %}
+                                                            {% set friendship_status = current_user.get_friendship_status(user) %}
+                                                            {% if friendship_status == 'friends' %}
+                                                                <span class="btn btn-sm btn-success disabled">
+                                                                    <i class="bi bi-check-circle"></i> Friends
+                                                                </span>
+                                                            {% elif friendship_status == 'pending_incoming' %}
+                                                                <button class="btn btn-sm btn-warning" onclick="acceptFriendRequest({{ user.id }}, '{{ user.get_full_name() or user.username }}')">
+                                                                    <i class="bi bi-check"></i> Accept
+                                                                </button>
+                                                            {% elif friendship_status == 'pending_outgoing' %}
+                                                                <span class="btn btn-sm btn-info disabled">
+                                                                    <i class="bi bi-clock"></i> Pending
+                                                                </span>
+                                                            {% elif friendship_status == 'blocked' %}
+                                                                <span class="btn btn-sm btn-secondary disabled">
+                                                                    <i class="bi bi-person-slash"></i> Blocked
+                                                                </span>
+                                                            {% else %}
+                                                                {% if user.allow_friend_requests %}
+                                                                    <button class="btn btn-sm btn-primary" onclick="sendFriendRequest({{ user.id }}, '{{ user.get_full_name() or user.username }}')">
+                                                                        <i class="bi bi-person-plus"></i>
+                                                                    </button>
+                                                                {% endif %}
+                                                            {% endif %}
+                                                        {% endif %}
+                                                        <a href="{{ url_for('auth.view_profile', user_id=user.id) }}" class="btn btn-sm btn-outline-primary">
+                                                            <i class="bi bi-person"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% elif request.method == 'POST' %}
+                <!-- No Results -->
+                <div class="card shadow-sm">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-search text-muted" style="font-size: 3rem;"></i>
+                        <h5 class="mt-3 text-muted">No users found</h5>
+                        <p class="text-muted">Try a different search term or check your spelling</p>
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <strong>Search tips:</strong><br>
+                                • Try searching by username, first name, or last name<br>
+                                • Use partial names (e.g., "john" will find "John Smith")<br>
+                                • Only public profiles are shown in search results
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <!-- Search Instructions -->
+                <div class="card shadow-sm">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-people text-primary" style="font-size: 3rem;"></i>
+                        <h5 class="mt-3">Discover WatchTogether Community</h5>
+                        <p class="text-muted">Search for users by their username, first name, or last name to connect with people who share your interests</p>
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-4">
+                                <div class="feature-item">
+                                    <i class="bi bi-search text-primary fs-2"></i>
+                                    <h6 class="mt-2">Easy Search</h6>
+                                    <small class="text-muted">Find users by name or username</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="feature-item">
+                                    <i class="bi bi-heart text-danger fs-2"></i>
+                                    <h6 class="mt-2">Shared Interests</h6>
+                                    <small class="text-muted">See users' favorite genres and preferences</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="feature-item">
+                                    <i class="bi bi-shield-check text-success fs-2"></i>
+                                    <h6 class="mt-2">Privacy Respected</h6>
+                                    <small class="text-muted">Only public profiles are searchable</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .user-card {
+        transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+    
+    .user-card:hover {
+        background-color: #f8f9fa;
+        transform: translateY(-2px);
+    }
+    
+    .user-avatar {
+        border: 3px solid #f8f9fa;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .badge {
+        font-size: 0.7rem;
+    }
+    
+    .feature-item {
+        padding: 1rem;
+        text-align: center;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 15px;
+    }
+    
+    .card-header {
+        border-radius: 15px 15px 0 0 !important;
+    }
+    
+    .btn {
+        border-radius: 8px;
+    }
+    
+    .form-control {
+        border-radius: 8px;
+    }
+    
+    .form-floating > .form-control:focus ~ label,
+    .form-floating > .form-control:not(:placeholder-shown) ~ label {
+        opacity: 0.65;
+        transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+    }
+    
+    @media (max-width: 768px) {
+        .col-lg-6 {
+            width: 100%;
+        }
+        
+        .border-end {
+            border-right: none !important;
+        }
+    }
+    
+    .min-w-0 {
+        min-width: 0;
+    }
+    
+    .text-truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Show loading modal
+function showLoading() {
+    let loadingModal = document.getElementById('loadingModal');
+    if (!loadingModal) {
+        const modalHtml = `
+            <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-sm modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-body text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="mt-2">Processing...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        loadingModal = document.getElementById('loadingModal');
+    }
+    new bootstrap.Modal(loadingModal).show();
+}
+
+// Hide loading modal
+function hideLoading() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+    if (modal) modal.hide();
+}
+
+// Show toast notification
+function showToast(message, type = 'success') {
+    const toastHtml = `
+        <div class="toast align-items-center text-white bg-${type} border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+    
+    let toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '1055';
+        document.body.appendChild(toastContainer);
+    }
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    const toastElement = toastContainer.lastElementChild;
+    new bootstrap.Toast(toastElement).show();
+    
+    // Remove toast after it's hidden
+    toastElement.addEventListener('hidden.bs.toast', () => {
+        toastElement.remove();
+    });
+}
+
+// Send friend request
+function sendFriendRequest(userId, userName) {
+    showLoading();
+    
+    fetch('/auth/api/friend-request/send', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showToast(`Friend request sent to ${userName}!`, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(data.message || 'Failed to send friend request', 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        showToast('An error occurred', 'danger');
+    });
+}
+
+// Accept friend request
+function acceptFriendRequest(userId, userName) {
+    showLoading();
+    
+    fetch('/auth/api/friend-request/accept', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: userId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        if (data.success) {
+            showToast(`You are now friends with ${userName}!`, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(data.message || 'Failed to accept friend request', 'danger');
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        showToast('An error occurred', 'danger');
+    });
+}
+</script>
+{% endblock %}
