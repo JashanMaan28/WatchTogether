@@ -437,35 +437,8 @@ function hideLoading() {
     if (modal) modal.hide();
 }
 
-// Show toast notification
-function showToast(message, type = 'success') {
-    const toastHtml = `
-        <div class="toast align-items-center text-white bg-${type} border-0" role="alert">
-            <div class="d-flex">
-                <div class="toast-body">${message}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        </div>
-    `;
-    
-    let toastContainer = document.getElementById('toastContainer');
-    if (!toastContainer) {
-        toastContainer = document.createElement('div');
-        toastContainer.id = 'toastContainer';
-        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-        toastContainer.style.zIndex = '1055';
-        document.body.appendChild(toastContainer);
-    }
-    
-    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-    const toastElement = toastContainer.lastElementChild;
-    new bootstrap.Toast(toastElement).show();
-    
-    // Remove toast after it's hidden
-    toastElement.addEventListener('hidden.bs.toast', () => {
-        toastElement.remove();
-    });
-}
+// Use centralized notification system
+const notificationManager = new NotificationManager();
 
 // Send friend request
 function sendFriendRequest(userId, userName) {
@@ -482,15 +455,15 @@ function sendFriendRequest(userId, userName) {
     .then(data => {
         hideLoading();
         if (data.success) {
-            showToast(`Friend request sent to ${userName}!`, 'success');
+            notificationManager.notificationManager.showToast(`Friend request sent to ${userName}!`, 'success');
             setTimeout(() => location.reload(), 1500);
         } else {
-            showToast(data.message || 'Failed to send friend request', 'danger');
+            notificationManager.showToast(data.message || 'Failed to send friend request', 'danger');
         }
     })
     .catch(error => {
         hideLoading();
-        showToast('An error occurred', 'danger');
+        notificationManager.showToast('An error occurred', 'danger');
     });
 }
 
@@ -509,15 +482,15 @@ function acceptFriendRequest(userId, userName) {
     .then(data => {
         hideLoading();
         if (data.success) {
-            showToast(`You are now friends with ${userName}!`, 'success');
+            notificationManager.showToast(`You are now friends with ${userName}!`, 'success');
             setTimeout(() => location.reload(), 1500);
         } else {
-            showToast(data.message || 'Failed to accept friend request', 'danger');
+            notificationManager.showToast(data.message || 'Failed to accept friend request', 'danger');
         }
     })
     .catch(error => {
         hideLoading();
-        showToast('An error occurred', 'danger');
+        notificationManager.showToast('An error occurred', 'danger');
     });
 }
 
@@ -536,15 +509,15 @@ function declineFriendRequest(userId, userName) {
     .then(data => {
         hideLoading();
         if (data.success) {
-            showToast('Friend request declined', 'info');
+            notificationManager.showToast('Friend request declined', 'info');
             setTimeout(() => location.reload(), 1500);
         } else {
-            showToast(data.message || 'Failed to decline friend request', 'danger');
+            notificationManager.showToast(data.message || 'Failed to decline friend request', 'danger');
         }
     })
     .catch(error => {
         hideLoading();
-        showToast('An error occurred', 'danger');
+        notificationManager.showToast('An error occurred', 'danger');
     });
 }
 
@@ -567,15 +540,15 @@ function removeFriend(userId, userName) {
     .then(data => {
         hideLoading();
         if (data.success) {
-            showToast(`${userName} has been removed from your friends`, 'info');
+            notificationManager.showToast(`${userName} has been removed from your friends`, 'info');
             setTimeout(() => location.reload(), 1500);
         } else {
-            showToast(data.message || 'Failed to remove friend', 'danger');
+            notificationManager.showToast(data.message || 'Failed to remove friend', 'danger');
         }
     })
     .catch(error => {
         hideLoading();
-        showToast('An error occurred', 'danger');
+        notificationManager.showToast('An error occurred', 'danger');
     });
 }
 
@@ -598,15 +571,15 @@ function blockUser(userId, userName) {
     .then(data => {
         hideLoading();
         if (data.success) {
-            showToast(`${userName} has been blocked`, 'warning');
+            notificationManager.showToast(`${userName} has been blocked`, 'warning');
             setTimeout(() => location.reload(), 1500);
         } else {
-            showToast(data.message || 'Failed to block user', 'danger');
+            notificationManager.showToast(data.message || 'Failed to block user', 'danger');
         }
     })
     .catch(error => {
         hideLoading();
-        showToast('An error occurred', 'danger');
+        notificationManager.showToast('An error occurred', 'danger');
     });
 }
 
@@ -625,15 +598,15 @@ function unblockUser(userId, userName) {
     .then(data => {
         hideLoading();
         if (data.success) {
-            showToast(`${userName} has been unblocked`, 'success');
+            notificationManager.showToast(`${userName} has been unblocked`, 'success');
             setTimeout(() => location.reload(), 1500);
         } else {
-            showToast(data.message || 'Failed to unblock user', 'danger');
+            notificationManager.showToast(data.message || 'Failed to unblock user', 'danger');
         }
     })
     .catch(error => {
         hideLoading();
-        showToast('An error occurred', 'danger');
+        notificationManager.showToast('An error occurred', 'danger');
     });
 }
 

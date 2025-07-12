@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Share Watchlist - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-share text-primary me-2"></i>
+                        Share Your Watchlist
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Share your personal watchlist with friends to let them see what you're watching, 
+                        planning to watch, or have completed.
+                    </p>
+                    
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            {{ form.friend_id.label(class="form-label") }}
+                            {{ form.friend_id(class="form-select") }}
+                            {% if not form.friend_id.choices %}
+                                <div class="form-text text-warning">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    You need to have friends to share your watchlist. 
+                                    <a href="{{ url_for('auth.search_users') }}">Find and add friends</a>.
+                                </div>
+                            {% endif %}
+                            {% if form.friend_id.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.friend_id.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.share_type.label(class="form-label") }}
+                            {{ form.share_type(class="form-select") }}
+                            <div class="form-text">
+                                <strong>View Only:</strong> Friend can see your watchlist but cannot make changes.<br>
+                                <strong>View and Edit:</strong> Friend can see and add items to your watchlist.
+                            </div>
+                            {% if form.share_type.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.share_type.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label">{{ form.shared_statuses.label.text }}</label>
+                            <div class="row">
+                                {% for choice in form.shared_statuses %}
+                                <div class="col-md-6 mb-2">
+                                    <div class="form-check">
+                                        {{ choice(class="form-check-input") }}
+                                        {{ choice.label(class="form-check-label") }}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="form-text">Select which parts of your watchlist to share.</div>
+                            {% if form.shared_statuses.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.shared_statuses.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('watchlist.my_shares') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            {% if form.friend_id.choices %}
+                                {{ form.submit(class="btn btn-primary") }}
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

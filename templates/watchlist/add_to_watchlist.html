@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Add to Watchlist - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                {% if content.tmdb_id %}
+                    <a href="{{ url_for('content.detail', tmdb_id=content.tmdb_id, content_type=(content.type if content.type != 'tv_show' else 'tv')) }}" class="btn btn-outline-secondary me-3">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('content.index') }}" class="btn btn-outline-secondary me-3">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                {% endif %}
+                <h1 class="h2 mb-0">Add to Watchlist</h1>
+            </div>
+
+            <!-- Content Preview -->
+            <div class="card mb-4">
+                <div class="row g-0">
+                    <div class="col-md-3">
+                        {% if content.poster_url %}
+                        <img src="{{ content.poster_url }}" class="img-fluid rounded-start h-100" alt="{{ content.title }}" style="object-fit: cover;">
+                        {% else %}
+                        <div class="bg-light d-flex align-items-center justify-content-center h-100 rounded-start" style="min-height: 200px;">
+                            <i class="fas fa-film fa-3x text-muted"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-9">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ content.title }}</h5>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    {{ content.type.replace('_', ' ').title() }}
+                                    {% if content.year %} • {{ content.year }}{% endif %}
+                                    {% if content.duration %}
+                                        {% if content.type == 'movie' %}
+                                            • {{ content.duration }}min
+                                        {% else %}
+                                            • ~{{ content.duration }}min/episode
+                                        {% endif %}
+                                    {% endif %}
+                                    {% if content.rating %} • ⭐ {{ content.rating }}/10{% endif %}
+                                </small>
+                            </p>
+                            {% if content.description %}
+                            <p class="card-text">{{ content.description[:200] }}{% if content.description|length > 200 %}...{% endif %}</p>
+                            {% endif %}
+                            {% if content.get_genres() %}
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    <strong>Genres:</strong>
+                                    {% for genre in content.get_genres() %}
+                                        <span class="badge bg-secondary me-1">{{ genre }}</span>
+                                    {% endfor %}
+                                </small>
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add to Watchlist Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-plus text-primary me-2"></i>
+                        Watchlist Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.status.label(class="form-label") }}
+                                {{ form.status(class="form-select") }}
+                                {% if form.status.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.status.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.priority.label(class="form-label") }}
+                                {{ form.priority(class="form-select") }}
+                                {% if form.priority.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.priority.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.personal_rating.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.personal_rating(class="form-control", placeholder="Optional", min="1", max="10", step="0.1") }}
+                                <span class="input-group-text">/10</span>
+                            </div>
+                            <div class="form-text">Rate this content on a scale of 1-10 (optional)</div>
+                            {% if form.personal_rating.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.personal_rating.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.personal_notes.label(class="form-label") }}
+                            {{ form.personal_notes(class="form-control", rows="3", placeholder="Add personal notes about why you want to watch this, your thoughts, etc.") }}
+                            <div class="form-text">Personal notes are visible only to you and people you share your watchlist with.</div>
+                            {% if form.personal_notes.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.personal_notes.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="form-check">
+                                {{ form.is_public(class="form-check-input") }}
+                                {{ form.is_public.label(class="form-check-label") }}
+                            </div>
+                            <div class="form-text">When enabled, friends can see this item in your shared watchlist.</div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% if content.tmdb_id %}{{ url_for('content.detail', tmdb_id=content.tmdb_id, content_type=('movie' if content.content_type == 'Movie' else 'tv')) }}{% else %}{{ url_for('content.index') }}{% endif %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Add some visual feedback for the rating input
+document.addEventListener('DOMContentLoaded', function() {
+    const ratingInput = document.querySelector('input[name="personal_rating"]');
+    
+    if (ratingInput) {
+        ratingInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            const feedback = this.parentNode.nextElementSibling;
+            
+            if (value >= 8) {
+                feedback.textContent = 'Excellent rating! Must be really looking forward to this.';
+                feedback.className = 'form-text text-success';
+            } else if (value >= 6) {
+                feedback.textContent = 'Good rating! This looks promising.';
+                feedback.className = 'form-text text-info';
+            } else if (value >= 4) {
+                feedback.textContent = 'Average rating. Worth a watch.';
+                feedback.className = 'form-text text-warning';
+            } else if (value > 0) {
+                feedback.textContent = 'Low rating. Maybe save for when nothing else is available?';
+                feedback.className = 'form-text text-muted';
+            } else {
+                feedback.textContent = 'Rate this content on a scale of 1-10 (optional)';
+                feedback.className = 'form-text';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

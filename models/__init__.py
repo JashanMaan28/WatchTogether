@@ -443,31 +443,7 @@ class User(UserMixin, db.Model):
         
         return None
 
-    def get_friendship_status_with(self, user):
-        """Get friendship status with another user for template usage"""
-        friendship = Friendship.get_friendship(self.id, user.id)
-        
-        if not friendship:
-            return None
-        
-        if friendship.status == 'accepted':
-            return 'friends'
-        elif friendship.status == 'pending':
-            if friendship.requester_id == self.id:
-                return 'pending_outgoing'
-            else:
-                return 'pending_incoming'
-        elif friendship.status == 'blocked':
-            if friendship.requester_id == self.id:
-                return 'blocked'
-            else:
-                return 'blocked_by'
-        
-        return None
 
-    def get_friend_status_with(self, user):
-        """Get friendship status with another user"""
-        return Friendship.get_friend_status(self.id, user.id)
 
 class Friendship(db.Model):
     """Friendship model to handle friend relationships"""
@@ -756,3 +732,473 @@ class GroupMember(db.Model):
             return True, "User can leave group"
         
         return False, "Insufficient permissions to remove member"
+
+# Content Management Models
+
+class Platform(db.Model):
+    """Platform model for streaming services"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    logo_url = db.Column(db.String(255), nullable=True)
+    website_url = db.Column(db.String(255), nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    content_platforms = db.relationship('ContentPlatform', backref='platform_ref', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<Platform {self.name}>'
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'logo_url': self.logo_url,
+            'website_url': self.website_url,
+            'is_active': self.is_active
+        }
+
+
+class Content(db.Model):
+    """Content model for movies, TV shows, etc."""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False, index=True)
+    description = db.Column(db.Text, nullable=True)
+    type = db.Column(db.String(50), nullable=False, index=True)  # movie, tv_show, documentary, etc.
+    genre = db.Column(db.String(255), nullable=True, index=True)  # JSON string of genres
+    year = db.Column(db.Integer, nullable=True, index=True)
+    rating = db.Column(db.Float, nullable=True, index=True)  # IMDb/TMDB rating
+    duration = db.Column(db.Integer, nullable=True)  # duration in minutes
+    poster_url = db.Column(db.String(500), nullable=True)
+    backdrop_url = db.Column(db.String(500), nullable=True)
+    trailer_url = db.Column(db.String(500), nullable=True)
+    
+    # External IDs
+    tmdb_id = db.Column(db.Integer, nullable=True, unique=True, index=True)
+    imdb_id = db.Column(db.String(20), nullable=True, index=True)
+    
+    # Additional metadata
+    director = db.Column(db.String(255), nullable=True)
+    cast = db.Column(db.Text, nullable=True)  # JSON string
+    country = db.Column(db.String(100), nullable=True)
+    language = db.Column(db.String(50), nullable=True)
+    status = db.Column(db.String(50), default='active')  # active, inactive, coming_soon
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    content_platforms = db.relationship('ContentPlatform', backref='content_ref', lazy='dynamic', cascade='all, delete-orphan')
+    user_watchlists = db.relationship('UserWatchlist', backref='content_ref', lazy='dynamic', cascade='all, delete-orphan')
+    content_ratings = db.relationship('ContentRating', backref='content_ref', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<Content {self.title} ({self.year})>'
+    
+    def get_genres(self):
+        """Get genres as a list"""
+        if self.genre:
+            try:
+                return json.loads(self.genre)
+            except:
+                return [self.genre]
+        return []
+    
+    def set_genres(self, genres):
+        """Set genres from a list"""
+        if isinstance(genres, list):
+            self.genre = json.dumps(genres)
+        else:
+            self.genre = genres
+    
+    def get_cast(self):
+        """Get cast as a list"""
+        if self.cast:
+            try:
+                return json.loads(self.cast)
+            except:
+                return []
+        return []
+    
+    def set_cast(self, cast):
+        """Set cast from a list"""
+        if isinstance(cast, list):
+            self.cast = json.dumps(cast)
+        else:
+            self.cast = cast
+    
+    def get_platforms(self):
+        """Get all platforms where this content is available"""
+        return [cp.platform_ref for cp in self.content_platforms if cp.platform_ref.is_active]
+    
+    def get_average_rating(self):
+        """Get average user rating"""
+        ratings = self.content_ratings.all()
+        if ratings:
+            return sum(r.rating for r in ratings) / len(ratings)
+        return None
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'description': self.description,
+            'type': self.type,
+            'genre': self.get_genres(),
+            'year': self.year,
+            'rating': self.rating,
+            'duration': self.duration,
+            'poster_url': self.poster_url,
+            'backdrop_url': self.backdrop_url,
+            'trailer_url': self.trailer_url,
+            'director': self.director,
+            'cast': self.get_cast(),
+            'country': self.country,
+            'language': self.language,
+            'platforms': [p.name for p in self.get_platforms()],
+            'average_user_rating': self.get_average_rating()
+        }
+
+
+class ContentPlatform(db.Model):
+    """Relationship model between Content and Platform"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    content_id = db.Column(db.Integer, db.ForeignKey('content.id'), nullable=False)
+    platform_id = db.Column(db.Integer, db.ForeignKey('platform.id'), nullable=False)
+    url = db.Column(db.String(500), nullable=True)  # Direct link to content on platform
+    is_available = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Unique constraint to prevent duplicate entries
+    __table_args__ = (db.UniqueConstraint('content_id', 'platform_id', name='unique_content_platform'),)
+    
+    def __repr__(self):
+        return f'<ContentPlatform {self.content_id}-{self.platform_id}>'
+
+
+class UserWatchlist(db.Model):
+    """Enhanced user's personal watchlist with priority and progress tracking"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    content_id = db.Column(db.Integer, db.ForeignKey('content.id'), nullable=False)
+    status = db.Column(db.String(50), default='want_to_watch')  # want_to_watch, watching, completed, on_hold, dropped
+    priority = db.Column(db.String(20), default='medium')  # high, medium, low
+    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+    started_at = db.Column(db.DateTime, nullable=True)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Progress tracking for TV series
+    current_season = db.Column(db.Integer, nullable=True, default=1)
+    current_episode = db.Column(db.Integer, nullable=True, default=1)
+    total_episodes_watched = db.Column(db.Integer, nullable=True, default=0)
+    
+    # Personal notes and rating
+    personal_notes = db.Column(db.Text, nullable=True)
+    personal_rating = db.Column(db.Float, nullable=True)  # Personal rating (1-10)
+    
+    # Sharing settings
+    is_public = db.Column(db.Boolean, default=True)  # Whether this entry is visible to friends
+    
+    # Relationships
+    user = db.relationship('User', backref='watchlist_items')
+    
+    # Unique constraint
+    __table_args__ = (db.UniqueConstraint('user_id', 'content_id', name='unique_user_content'),)
+    
+    def __repr__(self):
+        return f'<UserWatchlist {self.user_id}-{self.content_id}: {self.status}>'
+    
+    def update_status(self, new_status):
+        """Update watchlist status with automatic timestamp tracking"""
+        old_status = self.status
+        self.status = new_status
+        
+        if new_status == 'watching' and old_status == 'want_to_watch':
+            self.started_at = datetime.utcnow()
+        elif new_status == 'completed' and old_status in ['watching', 'want_to_watch']:
+            self.completed_at = datetime.utcnow()
+            if not self.started_at:
+                self.started_at = datetime.utcnow()
+    
+    def update_progress(self, season=None, episode=None):
+        """Update progress for TV series"""
+        if season is not None:
+            self.current_season = season
+        if episode is not None:
+            self.current_episode = episode
+            # Auto-increment total episodes watched
+            if self.total_episodes_watched is None:
+                self.total_episodes_watched = 1
+            else:
+                self.total_episodes_watched += 1
+        
+        # Auto-update status if starting to watch
+        if self.status == 'want_to_watch':
+            self.update_status('watching')
+    
+    def get_progress_percentage(self):
+        """Calculate progress percentage for TV series (if total episodes known)"""
+        if self.content_ref.type != 'tv_show' or not self.total_episodes_watched:
+            return None
+        
+        # This would require additional metadata about total episodes
+        # For now, return a simple calculation based on episodes watched
+        if self.total_episodes_watched > 0:
+            return min(100, (self.total_episodes_watched / 20) * 100)  # Assuming avg 20 eps per season
+        return 0
+    
+    def get_time_spent_watching(self):
+        """Calculate estimated time spent watching (for completed content)"""
+        if self.status == 'completed' and self.content_ref.duration:
+            if self.content_ref.type == 'movie':
+                return self.content_ref.duration
+            elif self.content_ref.type == 'tv_show' and self.total_episodes_watched:
+                avg_episode_duration = self.content_ref.duration or 45  # Default 45 min per episode
+                return self.total_episodes_watched * avg_episode_duration
+        return 0
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'content': self.content_ref.to_dict() if self.content_ref else None,
+            'status': self.status,
+            'priority': self.priority,
+            'added_at': self.added_at.isoformat() if self.added_at else None,
+            'started_at': self.started_at.isoformat() if self.started_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'current_season': self.current_season,
+            'current_episode': self.current_episode,
+            'total_episodes_watched': self.total_episodes_watched,
+            'personal_notes': self.personal_notes,
+            'personal_rating': self.personal_rating,
+            'progress_percentage': self.get_progress_percentage(),
+            'time_spent_watching': self.get_time_spent_watching(),
+            'is_public': self.is_public
+        }
+
+
+class ContentRating(db.Model):
+    """User ratings for content"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    content_id = db.Column(db.Integer, db.ForeignKey('content.id'), nullable=False)
+    rating = db.Column(db.Float, nullable=False)  # 1-10 rating
+    review = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Unique constraint
+    __table_args__ = (db.UniqueConstraint('user_id', 'content_id', name='unique_user_content_rating'),)
+    
+    def __repr__(self):
+        return f'<ContentRating {self.user_id}-{self.content_id}: {self.rating}>'
+
+class GroupWatchlist(db.Model):
+    """Shared watchlist for groups"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
+    content_id = db.Column(db.Integer, db.ForeignKey('content.id'), nullable=False)
+    added_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(db.String(50), default='planned')  # planned, watching, completed
+    priority = db.Column(db.String(20), default='medium')  # high, medium, low
+    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+    scheduled_for = db.Column(db.DateTime, nullable=True)  # When group plans to watch
+    
+    # Group viewing progress
+    group_status = db.Column(db.String(50), default='not_started')  # not_started, in_progress, completed
+    current_season = db.Column(db.Integer, nullable=True, default=1)
+    current_episode = db.Column(db.Integer, nullable=True, default=1)
+    
+    # Voting and discussion
+    upvotes = db.Column(db.Integer, default=0)
+    downvotes = db.Column(db.Integer, default=0)
+    description = db.Column(db.Text, nullable=True)  # Why this content was added
+    
+    # Relationships
+    group = db.relationship('Group', backref='group_watchlist_items')
+    content = db.relationship('Content', backref='group_watchlist_items')
+    added_by_user = db.relationship('User', backref='added_group_content')
+    votes = db.relationship('GroupWatchlistVote', backref='watchlist_item', cascade='all, delete-orphan')
+    
+    # Unique constraint
+    __table_args__ = (db.UniqueConstraint('group_id', 'content_id', name='unique_group_content'),)
+    
+    def __repr__(self):
+        return f'<GroupWatchlist {self.group_id}-{self.content_id}: {self.status}>'
+    
+    def get_vote_score(self):
+        """Calculate net vote score"""
+        return self.upvotes - self.downvotes
+    
+    def get_user_vote(self, user_id):
+        """Get user's vote on this content"""
+        vote = GroupWatchlistVote.query.filter_by(
+            group_watchlist_id=self.id,
+            user_id=user_id
+        ).first()
+        return vote.vote_type if vote else None
+    
+    def update_vote_counts(self):
+        """Recalculate vote counts from actual votes"""
+        votes = GroupWatchlistVote.query.filter_by(group_watchlist_id=self.id).all()
+        self.upvotes = len([v for v in votes if v.vote_type == 'up'])
+        self.downvotes = len([v for v in votes if v.vote_type == 'down'])
+    
+    def can_user_edit(self, user_id):
+        """Check if user can edit this watchlist item"""
+        if self.added_by == user_id:
+            return True
+        
+        # Check group permissions
+        member = GroupMember.query.filter_by(group_id=self.group_id, user_id=user_id).first()
+        if member and member.role in ['admin', 'moderator']:
+            return True
+        
+        return self.group.created_by == user_id
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'group_id': self.group_id,
+            'content': self.content.to_dict() if self.content else None,
+            'added_by': {
+                'id': self.added_by_user.id,
+                'username': self.added_by_user.username,
+                'full_name': self.added_by_user.get_full_name()
+            },
+            'status': self.status,
+            'priority': self.priority,
+            'added_at': self.added_at.isoformat(),
+            'scheduled_for': self.scheduled_for.isoformat() if self.scheduled_for else None,
+            'group_status': self.group_status,
+            'current_season': self.current_season,
+            'current_episode': self.current_episode,
+            'upvotes': self.upvotes,
+            'downvotes': self.downvotes,
+            'vote_score': self.get_vote_score(),
+            'description': self.description
+        }
+
+
+class GroupWatchlistVote(db.Model):
+    """Votes on group watchlist items"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    group_watchlist_id = db.Column(db.Integer, db.ForeignKey('group_watchlist.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    vote_type = db.Column(db.String(10), nullable=False)  # 'up' or 'down'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='group_watchlist_votes')
+    
+    # Unique constraint - one vote per user per item
+    __table_args__ = (db.UniqueConstraint('group_watchlist_id', 'user_id', name='unique_user_vote'),)
+    
+    def __repr__(self):
+        return f'<GroupWatchlistVote {self.user_id}: {self.vote_type}>'
+
+
+class WatchlistShare(db.Model):
+    """Sharing personal watchlists with friends"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    shared_with_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    share_type = db.Column(db.String(20), default='view')  # view, edit
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Optional: Share specific status categories
+    shared_statuses = db.Column(db.String(255), nullable=True)  # JSON list of statuses to share
+    
+    # Relationships
+    owner = db.relationship('User', foreign_keys=[owner_id], backref='shared_watchlists')
+    shared_with = db.relationship('User', foreign_keys=[shared_with_id], backref='received_watchlist_shares')
+    
+    # Unique constraint
+    __table_args__ = (db.UniqueConstraint('owner_id', 'shared_with_id', name='unique_watchlist_share'),)
+    
+    def set_shared_statuses(self, statuses):
+        """Set the shared statuses from a list"""
+        if statuses:
+            self.shared_statuses = json.dumps(statuses)
+        else:
+            self.shared_statuses = None
+    
+    def get_shared_statuses(self):
+        """Get the shared statuses as a list"""
+        if self.shared_statuses:
+            return json.loads(self.shared_statuses)
+        return []
+    
+    def __repr__(self):
+        return f'<WatchlistShare {self.owner_id} -> {self.shared_with_id}>'
+
+class WatchSession(db.Model):
+    """Track group watch sessions"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
+    content_id = db.Column(db.Integer, db.ForeignKey('content.id'), nullable=False)
+    host_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Session details
+    session_name = db.Column(db.String(200), nullable=True)
+    scheduled_time = db.Column(db.DateTime, nullable=False)
+    actual_start_time = db.Column(db.DateTime, nullable=True)
+    end_time = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(50), default='scheduled')  # scheduled, live, completed, cancelled
+    
+    # Viewing progress for session
+    current_time = db.Column(db.Integer, default=0)  # Current playback time in seconds
+    season_number = db.Column(db.Integer, nullable=True)
+    episode_number = db.Column(db.Integer, nullable=True)
+    
+    # Session settings
+    is_public = db.Column(db.Boolean, default=False)  # Whether non-members can join
+    max_participants = db.Column(db.Integer, default=20)
+    notes = db.Column(db.Text, nullable=True)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    group = db.relationship('Group', backref='watch_sessions')
+    content = db.relationship('Content', backref='watch_sessions')
+    host = db.relationship('User', backref='hosted_sessions')
+    participants = db.relationship('WatchSessionParticipant', backref='session', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<WatchSession {self.session_name or self.content.title}>'
+
+
+class WatchSessionParticipant(db.Model):
+    """Track participants in watch sessions"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('watch_session.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Participation details
+    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    left_at = db.Column(db.DateTime, nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Participant preferences
+    notifications_enabled = db.Column(db.Boolean, default=True)
+    
+    # Relationships
+    user = db.relationship('User', backref='session_participations')
+    
+    def __repr__(self):
+        return f'<WatchSessionParticipant {self.user.username} in {self.session_id}>'

@@ -11,6 +11,9 @@
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     
@@ -33,7 +36,26 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.index') }}">Home</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('content.index') }}">Browse Movies & TV</a>
+                    </li>
                     {% if current_user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            Watchlist
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('watchlist.my_watchlist') }}">
+                                <i class="bi bi-list-ul"></i> My Watchlist
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('watchlist.my_shares') }}">
+                                <i class="bi bi-share"></i> Shared Lists
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('watchlist.watch_sessions') }}">
+                                <i class="bi bi-play-circle"></i> Watch Sessions
+                            </a></li>
+                        </ul>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             Groups

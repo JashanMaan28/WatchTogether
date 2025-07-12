@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}Browse Movies & TV Shows{% endblock %}
+
+{% block extra_css %}
+<style>
+    .content-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+    
+    .content-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .content-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .content-poster {
+        width: 100%;
+        height: 300px;
+        object-fit: cover;
+        background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
+    }
+    
+    .content-info {
+        padding: 1rem;
+    }
+    
+    .content-title {
+        font-weight: bold;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    .content-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.8rem;
+        color: #666;
+    }
+    
+    .content-rating {
+        background: #007bff;
+        color: white;
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+    }
+    
+    .search-filters {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .filter-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr auto;
+        gap: 1rem;
+        align-items: end;
+    }
+    
+    .pagination-info {
+        text-align: center;
+        margin: 2rem 0;
+        color: #666;
+    }
+    
+    .no-poster {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 3rem;
+        font-weight: bold;
+    }
+    
+    .content-type-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 0.3rem 0.6rem;
+        border-radius: 15px;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">Browse Movies & TV Shows</h1>
+            
+            {% if not current_user.is_authenticated %}
+            <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+                <i class="fas fa-info-circle me-2"></i>
+                <div class="flex-grow-1">
+                    <strong>Discover thousands of movies and TV shows!</strong> 
+                    <a href="{{ url_for('auth.register') }}" class="alert-link">Sign up</a> 
+                    or <a href="{{ url_for('auth.login') }}" class="alert-link">log in</a> 
+                    to add content to your personal watchlist and join group discussions.
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+            
+            <!-- Search and Filters -->
+            <div class="search-filters">
+                <form method="GET" action="{{ url_for('content.index') }}">
+                    <div class="filter-row">
+                        <div class="form-group">
+                            <label for="search" class="form-label">Search</label>
+                            <input type="text" 
+                                   id="search" 
+                                   name="search" 
+                                   class="form-control"
+                                   value="{{ current_filters.search }}" 
+                                   placeholder="Search movies, TV shows, actors...">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="type" class="form-label">Type</label>
+                            <select id="type" name="type" class="form-select">
+                                <option value="movie" {% if current_filters.type == 'movie' %}selected{% endif %}>Movies</option>
+                                <option value="tv" {% if current_filters.type == 'tv' %}selected{% endif %}>TV Shows</option>
+                            </select>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Results Info -->
+            {% if total_results > 0 %}
+            <div class="pagination-info">
+                Showing {{ (page-1) * per_page + 1 }} - {{ [(page * per_page), total_results]|min }} of {{ total_results }} results
+            </div>
+            {% endif %}
+            
+            <!-- Content Grid -->
+            <div class="content-grid">
+                {% for content in content_items %}
+                <div class="content-card" onclick="window.location.href='{{ url_for('content.detail', tmdb_id=content.tmdb_id, content_type=content.type) }}'">
+                    <div style="position: relative;">
+                        {% if content.poster_url %}
+                            <img src="{{ content.poster_url }}" alt="{{ content.title }}" class="content-poster">
+                        {% else %}
+                            <div class="content-poster no-poster">
+                                {{ content.title[0] if content.title else '?' }}
+                            </div>
+                        {% endif %}
+                        
+                        {% if content.type %}
+                        <span class="content-type-badge">
+                            {% if content.type == 'tv_show' %}TV{% else %}Movie{% endif %}
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="content-info">
+                        <div class="content-title">{{ content.title }}</div>
+                        <div class="content-meta">
+                            <span>{{ content.year or 'N/A' }}</span>
+                            {% if content.rating %}
+                            <span class="content-rating">{{ "%.1f"|format(content.rating) }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-12 text-center py-5">
+                    <i class="fas fa-film fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">No content found</h4>
+                    <p class="text-muted">Try adjusting your search terms or filters</p>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+            <nav aria-label="Content pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('content.index', search=current_filters.search, type=current_filters.type, page=page-1) }}">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for p in range([1, page-2]|max, [total_pages+1, page+3]|min) %}
+                        {% if p == page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ p }}</span>
+                        </li>
+                        {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('content.index', search=current_filters.search, type=current_filters.type, page=p) }}">{{ p }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page < total_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('content.index', search=current_filters.search, type=current_filters.type, page=page+1) }}">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
-from wtforms import StringField, PasswordField, SubmitField, BooleanField, TextAreaField, SelectField, DateField, SelectMultipleField, widgets
-from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, Optional, URL
+from wtforms import StringField, PasswordField, SubmitField, BooleanField, TextAreaField, SelectField, DateField, SelectMultipleField, widgets, IntegerField, FloatField
+from wtforms.validators import DataRequired, Length, Email, EqualTo, ValidationError, Optional, URL, NumberRange
 from models import User
 import re
 from datetime import datetime, date
@@ -411,3 +411,258 @@ class DeleteGroupForm(FlaskForm):
     def validate_confirm_name(self, field):
         if self.group_name and field.data != self.group_name:
             raise ValidationError('Group name does not match')
+
+# Content Search Forms
+
+class ContentSearchForm(FlaskForm):
+    """Form for content search and filtering"""
+    search = StringField('Search', validators=[Optional()])
+    genre = SelectField('Genre', choices=[('', 'All Genres')], validators=[Optional()])
+    year = SelectField('Year', choices=[('', 'All Years')], validators=[Optional()])
+    rating = SelectField('Minimum Rating', 
+                        choices=[
+                            ('', 'Any Rating'),
+                            ('7.0', '7.0+'),
+                            ('8.0', '8.0+'),
+                            ('9.0', '9.0+')
+                        ], 
+                        validators=[Optional()])
+    platform = SelectField('Platform', choices=[('', 'All Platforms')], validators=[Optional()])
+    content_type = SelectField('Content Type', 
+                              choices=[
+                                  ('', 'All Types'),
+                                  ('movie', 'Movies'),
+                                  ('tv_show', 'TV Shows'),
+                                  ('documentary', 'Documentaries')
+                              ], 
+                              validators=[Optional()])
+    sort = SelectField('Sort By',
+                      choices=[
+                          ('title', 'Title A-Z'),
+                          ('year', 'Newest First'),
+                          ('rating', 'Highest Rated'),
+                          ('created', 'Recently Added')
+                      ],
+                      default='title',
+                      validators=[Optional()])
+    submit = SubmitField('Search')
+
+class ContentRatingForm(FlaskForm):
+    """Form for rating content"""
+    rating = FloatField('Rating (1-10)', validators=[
+        DataRequired(message='Rating is required'),
+        NumberRange(min=1, max=10, message='Rating must be between 1 and 10')
+    ])
+    review = TextAreaField('Review (optional)', validators=[
+        Optional(),
+        Length(max=1000, message='Review cannot exceed 1000 characters')
+    ])
+    submit = SubmitField('Submit Rating')
+
+class TMDBImportForm(FlaskForm):
+    """Form for importing content from TMDB"""
+    tmdb_id = IntegerField('TMDB ID', validators=[
+        DataRequired(message='TMDB ID is required'),
+        NumberRange(min=1, message='Invalid TMDB ID')
+    ])
+    content_type = SelectField('Content Type',
+                              choices=[
+                                  ('movie', 'Movie'),
+                                  ('tv', 'TV Show')
+                              ],
+                              default='movie',
+                              validators=[DataRequired()])
+    submit = SubmitField('Import from TMDB')
+
+# Watchlist Forms
+
+class AddToWatchlistForm(FlaskForm):
+    """Form for adding content to personal watchlist"""
+    status = SelectField('Status', choices=[
+        ('want_to_watch', 'Want to Watch'),
+        ('watching', 'Currently Watching'),
+        ('completed', 'Completed'),
+        ('on_hold', 'On Hold'),
+        ('dropped', 'Dropped')
+    ], default='want_to_watch', validators=[DataRequired()])
+    
+    priority = SelectField('Priority', choices=[
+        ('high', 'High'),
+        ('medium', 'Medium'),
+        ('low', 'Low')
+    ], default='medium', validators=[DataRequired()])
+    
+    personal_notes = TextAreaField('Personal Notes', validators=[
+        Optional(),
+        Length(max=1000, message='Notes must be less than 1000 characters')
+    ])
+    
+    personal_rating = FloatField('Personal Rating (1-10)', validators=[
+        Optional(),
+        NumberRange(min=1, max=10, message='Rating must be between 1 and 10')
+    ])
+    
+    is_public = BooleanField('Make this visible to friends', default=True)
+    
+    submit = SubmitField('Add to Watchlist')
+
+
+class UpdateWatchlistForm(FlaskForm):
+    """Form for updating watchlist items"""
+    status = SelectField('Status', choices=[
+        ('want_to_watch', 'Want to Watch'),
+        ('watching', 'Currently Watching'),
+        ('completed', 'Completed'),
+        ('on_hold', 'On Hold'),
+        ('dropped', 'Dropped')
+    ], validators=[DataRequired()])
+    
+    priority = SelectField('Priority', choices=[
+        ('high', 'High'),
+        ('medium', 'Medium'),
+        ('low', 'Low')
+    ], validators=[DataRequired()])
+    
+    current_season = IntegerField('Current Season', validators=[
+        Optional(),
+        NumberRange(min=1, message='Season must be at least 1')
+    ])
+    
+    current_episode = IntegerField('Current Episode', validators=[
+        Optional(),
+        NumberRange(min=1, message='Episode must be at least 1')
+    ])
+    
+    personal_notes = TextAreaField('Personal Notes', validators=[
+        Optional(),
+        Length(max=1000, message='Notes must be less than 1000 characters')
+    ])
+    
+    personal_rating = FloatField('Personal Rating (1-10)', validators=[
+        Optional(),
+        NumberRange(min=1, max=10, message='Rating must be between 1 and 10')
+    ])
+    
+    is_public = BooleanField('Make this visible to friends')
+    
+    submit = SubmitField('Update')
+
+
+class AddToGroupWatchlistForm(FlaskForm):
+    """Form for adding content to group watchlist"""
+    status = SelectField('Status', choices=[
+        ('planned', 'Planned'),
+        ('watching', 'Currently Watching'),
+        ('completed', 'Completed')
+    ], default='planned', validators=[DataRequired()])
+    
+    priority = SelectField('Priority', choices=[
+        ('high', 'High Priority'),
+        ('medium', 'Medium Priority'),
+        ('low', 'Low Priority')
+    ], default='medium', validators=[DataRequired()])
+    
+    description = TextAreaField('Why should we watch this?', validators=[
+        Optional(),
+        Length(max=500, message='Description must be less than 500 characters')
+    ])
+    
+    scheduled_for = DateField('Scheduled Date (Optional)', validators=[Optional()])
+    
+    submit = SubmitField('Add to Group Watchlist')
+
+
+class ShareWatchlistForm(FlaskForm):
+    """Form for sharing personal watchlist with friends"""
+    friend_id = SelectField('Share With', coerce=int, validators=[DataRequired(message='Please select a friend')])
+    
+    share_type = SelectField('Permission Level', choices=[
+        ('view', 'View Only'),
+        ('edit', 'View and Edit')
+    ], default='view', validators=[DataRequired()])
+    
+    shared_statuses = SelectMultipleField('Share Which Lists?', choices=[
+        ('want_to_watch', 'Want to Watch'),
+        ('watching', 'Currently Watching'),
+        ('completed', 'Completed'),
+        ('on_hold', 'On Hold'),
+        ('dropped', 'Dropped')
+    ], default=['want_to_watch', 'watching', 'completed'])
+    
+    submit = SubmitField('Share Watchlist')
+
+
+class CreateWatchSessionForm(FlaskForm):
+    """Form for creating group watch sessions"""
+    session_name = StringField('Session Name', validators=[
+        Optional(),
+        Length(max=200, message='Session name must be less than 200 characters')
+    ])
+    
+    scheduled_time = DateField('Scheduled Date', validators=[DataRequired()])
+    
+    season_number = IntegerField('Season (for TV shows)', validators=[
+        Optional(),
+        NumberRange(min=1, message='Season must be at least 1')
+    ])
+    
+    episode_number = IntegerField('Episode (for TV shows)', validators=[
+        Optional(),
+        NumberRange(min=1, message='Episode must be at least 1')
+    ])
+    
+    max_participants = IntegerField('Max Participants', validators=[
+        DataRequired(),
+        NumberRange(min=2, max=50, message='Participants must be between 2 and 50')
+    ], default=10)
+    
+    is_public = BooleanField('Allow non-members to join', default=False)
+    
+    notes = TextAreaField('Session Notes', validators=[
+        Optional(),
+        Length(max=1000, message='Notes must be less than 1000 characters')
+    ])
+    
+    submit = SubmitField('Create Watch Session')
+
+
+class WatchlistFilterForm(FlaskForm):
+    """Form for filtering watchlist items"""
+    status = SelectField('Status', choices=[
+        ('', 'All Statuses'),
+        ('want_to_watch', 'Want to Watch'),
+        ('watching', 'Currently Watching'),
+        ('completed', 'Completed'),
+        ('on_hold', 'On Hold'),
+        ('dropped', 'Dropped')
+    ], default='')
+    
+    priority = SelectField('Priority', choices=[
+        ('', 'All Priorities'),
+        ('high', 'High Priority'),
+        ('medium', 'Medium Priority'),
+        ('low', 'Low Priority')
+    ], default='')
+    
+    content_type = SelectField('Content Type', choices=[
+        ('', 'All Types'),
+        ('movie', 'Movies'),
+        ('tv_show', 'TV Shows'),
+        ('documentary', 'Documentaries')
+    ], default='')
+    
+    genre = StringField('Genre', validators=[Optional()])
+    
+    sort_by = SelectField('Sort By', choices=[
+        ('added_at_desc', 'Recently Added'),
+        ('added_at_asc', 'Oldest First'),
+        ('priority_high', 'Priority (High to Low)'),
+        ('priority_low', 'Priority (Low to High)'),
+        ('title_asc', 'Title (A-Z)'),
+        ('title_desc', 'Title (Z-A)'),
+        ('rating_desc', 'Highest Rated'),
+        ('year_desc', 'Newest Content'),
+        ('year_asc', 'Oldest Content')
+    ], default='added_at_desc')
+    
+    submit = SubmitField('Apply Filters')

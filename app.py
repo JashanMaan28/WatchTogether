@@ -42,6 +42,12 @@ def create_app(config_name=None):
     from routes.groups import groups as groups_blueprint
     app.register_blueprint(groups_blueprint)
     
+    from routes.content import content as content_blueprint
+    app.register_blueprint(content_blueprint)
+    
+    from routes.watchlist import watchlist_bp as watchlist_blueprint
+    app.register_blueprint(watchlist_blueprint)
+    
     # Error handlers
     from routes.errors import errors as errors_blueprint
     app.register_blueprint(errors_blueprint)

@@ -293,95 +293,22 @@
     color: white !important;
 }
 
-/* Ensure dropdown shows above other content */
+/* Dropdown positioning */
 .dropdown-menu {
     z-index: 1050 !important;
-    position: absolute !important;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-    border: 1px solid rgba(0, 0, 0, 0.125) !important;
-    background-color: white !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 
-/* Fix container overflow issues */
 .card-body {
     overflow: visible !important;
 }
 
-/* Ensure dropdown container doesn't clip */
-.dropdown {
-    position: relative;
-    z-index: 10;
-}
-
-/* Fix any border radius issues with cards */
-.border-bottom:last-child {
-    border-bottom: none !important;
-}
-
-/* Ensure proper stacking context */
-.d-flex.align-items-center.p-3.border-bottom {
-    position: relative;
-    z-index: 1;
-}
-
-.d-flex.align-items-center.p-3.border-bottom:hover {
-    z-index: 2;
-}
-
-/* Specific fix for member rows */
 .member-row {
-    position: relative !important;
-    z-index: 1;
-}
-
-.member-row:hover {
-    z-index: 10 !important;
-    background-color: var(--bs-gray-50);
-}
-
-/* Ensure dropdown appears above all card content */
-.member-row .dropdown-menu {
-    z-index: 1060 !important;
-}
-
-/* Override any Bootstrap card overflow settings */
-.card {
-    overflow: visible !important;
-}
-
-.card-body {
-    overflow: visible !important;
     position: relative;
 }
 
-/* Ensure the dropdown doesn't get cut off */
-.dropdown-menu-end {
-    right: 0 !important;
-    left: auto !important;
-}
-
-/* Fix for dropdown being covered by next row */
 .member-row.dropdown-open {
     z-index: 1050 !important;
-}
-
-.member-row.dropdown-open ~ .member-row {
-    z-index: 1 !important;
-    position: relative;
-}
-
-/* Ensure dropdown has enough space */
-.dropdown-menu {
-    margin-top: 0.125rem !important;
-}
-
-/* Prevent subsequent rows from overlapping dropdown */
-.member-row:has(.dropdown-menu.show) {
-    z-index: 1050 !important;
-}
-
-.member-row:has(.dropdown-menu.show) ~ .member-row {
-    z-index: 1 !important;
 }
 </style>
 {% endblock %}
@@ -389,69 +316,17 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Fix dropdown positioning issues
+    // Simple dropdown management
     const dropdownButtons = document.querySelectorAll('[data-bs-toggle="dropdown"]');
     
     dropdownButtons.forEach(button => {
-        button.addEventListener('show.bs.dropdown', function(event) {
-            // Reset all rows first
-            document.querySelectorAll('.member-row').forEach(row => {
-                row.classList.remove('dropdown-open');
-                row.style.zIndex = '1';
-            });
-            
-            // Get the dropdown menu and parent row
-            const dropdownMenu = this.nextElementSibling;
-            const parentRow = this.closest('.member-row');
-            
-            if (parentRow) {
-                // Mark this row as having an open dropdown
-                parentRow.classList.add('dropdown-open');
-                parentRow.style.zIndex = '1050';
-                
-                // Lower z-index for all subsequent rows
-                let nextSibling = parentRow.nextElementSibling;
-                while (nextSibling) {
-                    if (nextSibling.classList.contains('member-row')) {
-                        nextSibling.style.zIndex = '1';
-                    }
-                    nextSibling = nextSibling.nextElementSibling;
-                }
-            }
-            
-            // Ensure dropdown has highest z-index
-            dropdownMenu.style.zIndex = '1060';
-            dropdownMenu.style.position = 'absolute';
+        button.addEventListener('show.bs.dropdown', function() {
+            this.closest('.member-row')?.classList.add('dropdown-open');
         });
         
-        button.addEventListener('hide.bs.dropdown', function(event) {
-            // Reset all rows when dropdown closes
-            document.querySelectorAll('.member-row').forEach(row => {
-                row.classList.remove('dropdown-open');
-                row.style.zIndex = '1';
-            });
+        button.addEventListener('hide.bs.dropdown', function() {
+            this.closest('.member-row')?.classList.remove('dropdown-open');
         });
-    });
-    
-    // Ensure dropdowns don't interfere with each other
-    document.addEventListener('click', function(event) {
-        if (!event.target.closest('.dropdown')) {
-            // Reset all member row z-indexes and classes when clicking outside
-            document.querySelectorAll('.member-row').forEach(row => {
-                row.classList.remove('dropdown-open');
-                row.style.zIndex = '1';
-            });
-        }
-    });
-    
-    // Handle escape key
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            document.querySelectorAll('.member-row').forEach(row => {
-                row.classList.remove('dropdown-open');
-                row.style.zIndex = '1';
-            });
-        }
     });
 });
 </script>

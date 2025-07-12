@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Watchlist Shares - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-share-alt text-primary me-2"></i>
+                    Watchlist Sharing
+                </h1>
+                <div class="btn-group">
+                    <a href="{{ url_for('watchlist.share_watchlist') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Share with Friend
+                    </a>
+                    <a href="{{ url_for('watchlist.my_watchlist') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> My Watchlist
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Watchlists I've Shared -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-share text-success me-2"></i>
+                        Shared by Me
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if shared_by_me %}
+                        {% for share in shared_by_me %}
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="card-title mb-1">
+                                            <a href="{{ url_for('auth.view_profile', user_id=share.shared_with.id) }}" class="text-decoration-none">
+                                                {{ share.shared_with.get_full_name() or share.shared_with.username }}
+                                            </a>
+                                        </h6>
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                <i class="fas fa-eye me-1"></i>
+                                                {{ share.share_type.replace('_', ' ').title() }} access
+                                                <br>
+                                                <i class="fas fa-calendar me-1"></i>
+                                                Shared {{ share.created_at.strftime('%b %d, %Y') }}
+                                            </small>
+                                        </p>
+                                        
+                                        <!-- Shared Statuses -->
+                                        <div class="mb-2">
+                                            <small class="text-muted">Sharing:</small>
+                                            {% for status in share.get_shared_statuses() %}
+                                                <span class="badge bg-secondary me-1">{{ status.replace('_', ' ').title() }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                            <i class="fas fa-cog"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item" href="{{ url_for('watchlist.share_watchlist') }}?friend_id={{ share.shared_with.id }}">
+                                                    <i class="fas fa-edit me-2"></i>Edit Sharing
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item text-danger" href="#" 
+                                                   onclick="return confirm('Stop sharing your watchlist with {{ share.shared_with.username }}?')">
+                                                    <i class="fas fa-times me-2"></i>Stop Sharing
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-share fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">You haven't shared your watchlist with anyone yet.</p>
+                            <a href="{{ url_for('watchlist.share_watchlist') }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus"></i> Share with Friends
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Watchlists Shared with Me -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users text-info me-2"></i>
+                        Shared with Me
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if shared_with_me %}
+                        {% for share in shared_with_me %}
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="card-title mb-1">
+                                            <a href="{{ url_for('auth.view_profile', user_id=share.owner.id) }}" class="text-decoration-none">
+                                                {{ share.owner.get_full_name() or share.owner.username }}'s Watchlist
+                                            </a>
+                                        </h6>
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                <i class="fas fa-eye me-1"></i>
+                                                {{ share.share_type.replace('_', ' ').title() }} access
+                                                <br>
+                                                <i class="fas fa-calendar me-1"></i>
+                                                Shared {{ share.created_at.strftime('%b %d, %Y') }}
+                                            </small>
+                                        </p>
+                                        
+                                        <!-- Shared Statuses -->
+                                        <div class="mb-2">
+                                            <small class="text-muted">Available lists:</small>
+                                            {% for status in share.get_shared_statuses() %}
+                                                <span class="badge bg-info me-1">{{ status.replace('_', ' ').title() }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <a href="{{ url_for('watchlist.view_friend_watchlist', user_id=share.owner.id) }}" 
+                                           class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No friends have shared their watchlists with you yet.</p>
+                            <a href="{{ url_for('auth.search_users') }}" class="btn btn-info btn-sm">
+                                <i class="fas fa-user-plus"></i> Find Friends
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-lightbulb text-warning me-2"></i>
+                        Sharing Tips
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled mb-0">
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    Share your "Completed" list to show friends what you've watched
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    Share "Want to Watch" to get recommendations from friends
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled mb-0">
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    Use "View and Edit" to let friends add suggestions to your list
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    Only items marked as "public" will be visible to friends
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

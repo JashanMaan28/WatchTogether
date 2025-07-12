@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}Update Watchlist Item - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                <a href="{{ url_for('watchlist.my_watchlist') }}" class="btn btn-outline-secondary me-3">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <h1 class="h2 mb-0">Update Watchlist Item</h1>
+            </div>
+
+            <!-- Content Preview -->
+            <div class="card mb-4">
+                <div class="row g-0">
+                    <div class="col-md-3">
+                        {% if item.content_ref.poster_url %}
+                        <img src="{{ item.content_ref.poster_url }}" class="img-fluid rounded-start h-100" alt="{{ item.content_ref.title }}" style="object-fit: cover;">
+                        {% else %}
+                        <div class="bg-light d-flex align-items-center justify-content-center h-100 rounded-start" style="min-height: 200px;">
+                            <i class="fas fa-film fa-3x text-muted"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-9">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ item.content_ref.title }}</h5>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    {{ item.content_ref.type.replace('_', ' ').title() }}
+                                    {% if item.content_ref.year %} • {{ item.content_ref.year }}{% endif %}
+                                    {% if item.content_ref.duration %}
+                                        {% if item.content_ref.type == 'movie' %}
+                                            • {{ item.content_ref.duration }}min
+                                        {% else %}
+                                            • ~{{ item.content_ref.duration }}min/episode
+                                        {% endif %}
+                                    {% endif %}
+                                    {% if item.content_ref.rating %} • ⭐ {{ item.content_ref.rating }}/10{% endif %}
+                                </small>
+                            </p>
+                            
+                            <!-- Current Status Info -->
+                            <div class="row g-3 mt-2">
+                                <div class="col-sm-6">
+                                    <div class="badge bg-secondary me-2">{{ item.status.replace('_', ' ').title() }}</div>
+                                    <div class="badge bg-info">{{ item.priority.title() }} Priority</div>
+                                </div>
+                                <div class="col-sm-6 text-sm-end">
+                                    <small class="text-muted">
+                                        Added {{ item.added_at.strftime('%b %d, %Y') }}
+                                        {% if item.started_at %}
+                                            <br>Started {{ item.started_at.strftime('%b %d, %Y') }}
+                                        {% endif %}
+                                        {% if item.completed_at %}
+                                            <br>Completed {{ item.completed_at.strftime('%b %d, %Y') }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Update Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-edit text-primary me-2"></i>
+                        Update Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.status.label(class="form-label") }}
+                                {{ form.status(class="form-select") }}
+                                {% if form.status.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.status.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.priority.label(class="form-label") }}
+                                {{ form.priority(class="form-select") }}
+                                {% if form.priority.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.priority.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Progress Tracking for TV Shows -->
+                        {% if item.content_ref.type == 'tv_show' %}
+                        <div class="card border-info mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-tv text-info me-2"></i>
+                                    TV Show Progress
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        {{ form.current_season.label(class="form-label") }}
+                                        {{ form.current_season(class="form-control") }}
+                                        {% if form.current_season.errors %}
+                                            <div class="text-danger small">
+                                                {% for error in form.current_season.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        {{ form.current_episode.label(class="form-label") }}
+                                        {{ form.current_episode(class="form-control") }}
+                                        {% if form.current_episode.errors %}
+                                            <div class="text-danger small">
+                                                {% for error in form.current_episode.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                {% if item.total_episodes_watched %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    You've watched {{ item.total_episodes_watched }} episodes total.
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            {{ form.personal_rating.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.personal_rating(class="form-control", placeholder="Optional", min="1", max="10", step="0.1") }}
+                                <span class="input-group-text">/10</span>
+                            </div>
+                            <div class="form-text">Rate this content on a scale of 1-10 (optional)</div>
+                            {% if form.personal_rating.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.personal_rating.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.personal_notes.label(class="form-label") }}
+                            {{ form.personal_notes(class="form-control", rows="3", placeholder="Add personal notes about your thoughts, progress, etc.") }}
+                            <div class="form-text">Personal notes are visible only to you and people you share your watchlist with.</div>
+                            {% if form.personal_notes.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.personal_notes.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="form-check">
+                                {{ form.is_public(class="form-check-input") }}
+                                {{ form.is_public.label(class="form-check-label") }}
+                            </div>
+                            <div class="form-text">When enabled, friends can see this item in your shared watchlist.</div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('watchlist.my_watchlist') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6 class="card-title">Quick Actions</h6>
+                    <div class="btn-group" role="group">
+                        {% if item.content_ref.type == 'tv_show' and item.status == 'watching' %}
+                        <button type="button" class="btn btn-outline-success btn-sm" onclick="markNextEpisode()">
+                            <i class="fas fa-step-forward"></i> Next Episode
+                        </button>
+                        {% endif %}
+                        
+                        {% if item.status != 'completed' %}
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="markCompleted()">
+                            <i class="fas fa-check"></i> Mark as Completed
+                        </button>
+                        {% endif %}
+                        
+                        <a href="{% if item.content_ref.tmdb_id %}{{ url_for('content.detail', tmdb_id=item.content_ref.tmdb_id, content_type=('movie' if item.content_ref.content_type == 'Movie' else 'tv')) }}{% else %}{{ url_for('content.index') }}{% endif %}" class="btn btn-outline-info btn-sm">
+                            <i class="fas fa-info-circle"></i> View Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Quick action functions
+function markNextEpisode() {
+    const currentEpisode = document.querySelector('input[name="current_episode"]');
+    if (currentEpisode && currentEpisode.value) {
+        currentEpisode.value = parseInt(currentEpisode.value) + 1;
+    } else if (currentEpisode) {
+        currentEpisode.value = 1;
+    }
+    
+    // Auto-set status to watching if not already
+    const statusSelect = document.querySelector('select[name="status"]');
+    if (statusSelect && statusSelect.value === 'want_to_watch') {
+        statusSelect.value = 'watching';
+    }
+}
+
+function markCompleted() {
+    const statusSelect = document.querySelector('select[name="status"]');
+    if (statusSelect) {
+        statusSelect.value = 'completed';
+    }
+}
+
+// Rating input feedback
+document.addEventListener('DOMContentLoaded', function() {
+    const ratingInput = document.querySelector('input[name="personal_rating"]');
+    
+    if (ratingInput) {
+        ratingInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            const feedback = this.parentNode.nextElementSibling;
+            
+            if (value >= 8) {
+                feedback.textContent = 'Excellent rating! You really enjoyed this.';
+                feedback.className = 'form-text text-success';
+            } else if (value >= 6) {
+                feedback.textContent = 'Good rating! Solid entertainment.';
+                feedback.className = 'form-text text-info';
+            } else if (value >= 4) {
+                feedback.textContent = 'Average rating. It was okay.';
+                feedback.className = 'form-text text-warning';
+            } else if (value > 0) {
+                feedback.textContent = 'Low rating. Not your cup of tea?';
+                feedback.className = 'form-text text-muted';
+            } else {
+                feedback.textContent = 'Rate this content on a scale of 1-10 (optional)';
+                feedback.className = 'form-text';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

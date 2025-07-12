@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+
+{% block title %}My Watchlist - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Watchlist Header -->
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-list-ul text-primary me-2"></i>
+                    My Watchlist
+                </h1>
+                <div class="btn-group">
+                    <a href="{{ url_for('content.index') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-plus"></i> Add Content
+                    </a>
+                    <a href="{{ url_for('watchlist.share_watchlist') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-share"></i> Share
+                    </a>
+                    <a href="{{ url_for('watchlist.my_shares') }}" class="btn btn-outline-info">
+                        <i class="fas fa-users"></i> Shared Lists
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Statistics Panel -->
+        <div class="col-lg-3 col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar text-info me-2"></i>
+                        Watchlist Stats
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">Total Items</h6>
+                        <h4 class="text-primary">{{ stats.total_items }}</h4>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">By Status</h6>
+                        <div class="small">
+                            <div class="d-flex justify-content-between">
+                                <span>Want to Watch:</span>
+                                <span class="badge bg-secondary">{{ stats.want_to_watch }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Watching:</span>
+                                <span class="badge bg-warning">{{ stats.watching }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Completed:</span>
+                                <span class="badge bg-success">{{ stats.completed }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>On Hold:</span>
+                                <span class="badge bg-info">{{ stats.on_hold }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Dropped:</span>
+                                <span class="badge bg-danger">{{ stats.dropped }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if stats.avg_rating %}
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">Average Rating</h6>
+                        <div class="text-warning">
+                            {% for i in range(1, 6) %}
+                                {% if i <= (stats.avg_rating / 2) %}
+                                    <i class="fas fa-star"></i>
+                                {% elif i - 0.5 <= (stats.avg_rating / 2) %}
+                                    <i class="fas fa-star-half-alt"></i>
+                                {% else %}
+                                    <i class="far fa-star"></i>
+                                {% endif %}
+                            {% endfor %}
+                            <span class="ms-1">{{ "%.1f"|format(stats.avg_rating) }}/10</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if stats.total_watch_time > 0 %}
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">Time Watched</h6>
+                        <p class="mb-0">
+                            {% set hours = (stats.total_watch_time / 60) | int %}
+                            {% if hours >= 24 %}
+                                {{ (hours / 24) | int }} days {{ hours % 24 }} hours
+                            {% else %}
+                                {{ hours }} hours
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">This Year</h6>
+                        <p class="mb-0">{{ stats.completed_this_year }} completed</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-filter text-secondary me-2"></i>
+                        Filters
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="GET" id="filterForm">
+                        {{ filter_form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            {{ filter_form.status.label(class="form-label small") }}
+                            {{ filter_form.status(class="form-select form-select-sm") }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ filter_form.priority.label(class="form-label small") }}
+                            {{ filter_form.priority(class="form-select form-select-sm") }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ filter_form.content_type.label(class="form-label small") }}
+                            {{ filter_form.content_type(class="form-select form-select-sm") }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ filter_form.genre.label(class="form-label small") }}
+                            {{ filter_form.genre(class="form-control form-control-sm", placeholder="e.g., Action") }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ filter_form.sort_by.label(class="form-label small") }}
+                            {{ filter_form.sort_by(class="form-select form-select-sm") }}
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                            <a href="{{ url_for('watchlist.my_watchlist') }}" class="btn btn-outline-secondary btn-sm">Clear</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Watchlist Content -->
+        <div class="col-lg-9 col-md-8">
+            {% if items.items %}
+                <div class="row">
+                    {% for item in items.items %}
+                    <div class="col-xl-4 col-lg-6 col-md-12 mb-4">
+                        <div class="card h-100 watchlist-item" data-item-id="{{ item.id }}">
+                            <div class="position-relative">
+                                {% if item.content_ref.poster_url %}
+                                <img src="{{ item.content_ref.poster_url }}" class="card-img-top" alt="{{ item.content_ref.title }}" style="height: 300px; object-fit: cover;">
+                                {% else %}
+                                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 300px;">
+                                    <i class="fas fa-film fa-3x text-muted"></i>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Status Badge -->
+                                <div class="position-absolute top-0 start-0 m-2">
+                                    {% set status_colors = {
+                                        'want_to_watch': 'secondary',
+                                        'watching': 'warning',
+                                        'completed': 'success',
+                                        'on_hold': 'info',
+                                        'dropped': 'danger'
+                                    } %}
+                                    <span class="badge bg-{{ status_colors.get(item.status, 'secondary') }}">
+                                        {{ item.status.replace('_', ' ').title() }}
+                                    </span>
+                                </div>
+                                
+                                <!-- Priority Badge -->
+                                <div class="position-absolute top-0 end-0 m-2">
+                                    {% set priority_colors = {
+                                        'high': 'danger',
+                                        'medium': 'warning',
+                                        'low': 'success'
+                                    } %}
+                                    <span class="badge bg-{{ priority_colors.get(item.priority, 'secondary') }}">
+                                        {{ item.priority.title() }}
+                                    </span>
+                                </div>
+                                
+                                <!-- Progress for TV Shows -->
+                                {% if item.content_ref.type == 'tv_show' and item.current_season %}
+                                <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 text-white p-2">
+                                    <small>
+                                        Season {{ item.current_season }}
+                                        {% if item.current_episode %}, Episode {{ item.current_episode }}{% endif %}
+                                        {% if item.total_episodes_watched %}
+                                        <br>{{ item.total_episodes_watched }} episodes watched
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    {% if item.content_ref.tmdb_id %}
+                                        <a href="{{ url_for('content.detail', tmdb_id=item.content_ref.tmdb_id, content_type=(item.content_ref.type if item.content_ref.type != 'tv_show' else 'tv')) }}" class="text-decoration-none">
+                                            {{ item.content_ref.title }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">{{ item.content_ref.title }}</span>
+                                    {% endif %}
+                                </h5>
+                                
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        {{ item.content_ref.type.replace('_', ' ').title() }}
+                                        {% if item.content_ref.year %} • {{ item.content_ref.year }}{% endif %}
+                                        {% if item.content_ref.duration %}
+                                            {% if item.content_ref.type == 'movie' %}
+                                                • {{ item.content_ref.duration }}min
+                                            {% else %}
+                                                • ~{{ item.content_ref.duration }}min/episode
+                                            {% endif %}
+                                        {% endif %}
+                                    </small>
+                                </p>
+                                
+                                {% if item.personal_rating %}
+                                <div class="mb-2">
+                                    <small class="text-muted">Your Rating:</small>
+                                    <div class="text-warning">
+                                        {% for i in range(1, 6) %}
+                                            {% if i <= (item.personal_rating / 2) %}
+                                                <i class="fas fa-star"></i>
+                                            {% elif i - 0.5 <= (item.personal_rating / 2) %}
+                                                <i class="fas fa-star-half-alt"></i>
+                                            {% else %}
+                                                <i class="far fa-star"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                        <span class="ms-1">{{ item.personal_rating }}/10</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                {% if item.personal_notes %}
+                                <p class="card-text">
+                                    <small>{{ item.personal_notes[:100] }}{% if item.personal_notes|length > 100 %}...{% endif %}</small>
+                                </p>
+                                {% endif %}
+                                
+                                <div class="text-muted small mb-2">
+                                    Added {{ item.added_at.strftime('%b %d, %Y') }}
+                                    {% if item.started_at %}
+                                        <br>Started {{ item.started_at.strftime('%b %d, %Y') }}
+                                    {% endif %}
+                                    {% if item.completed_at %}
+                                        <br>Completed {{ item.completed_at.strftime('%b %d, %Y') }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="card-footer bg-transparent">
+                                <div class="row g-1">
+                                    <div class="col-6">
+                                        <a href="{{ url_for('watchlist.update_watchlist_item', watchlist_id=item.id) }}" 
+                                           class="btn btn-outline-primary btn-sm w-100">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                    </div>
+                                    <div class="col-6">
+                                        <a href="{{ url_for('watchlist.remove_from_watchlist', watchlist_id=item.id) }}" 
+                                           class="btn btn-outline-danger btn-sm w-100"
+                                           onclick="return confirm('Remove this item from your watchlist?')">
+                                            <i class="fas fa-trash"></i> Remove
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <!-- Quick Status Update -->
+                                <div class="mt-2">
+                                    <div class="btn-group w-100" role="group">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                                            Quick Update
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item quick-status" href="#" data-item-id="{{ item.id }}" data-status="want_to_watch">Want to Watch</a></li>
+                                            <li><a class="dropdown-item quick-status" href="#" data-item-id="{{ item.id }}" data-status="watching">Watching</a></li>
+                                            <li><a class="dropdown-item quick-status" href="#" data-item-id="{{ item.id }}" data-status="completed">Completed</a></li>
+                                            <li><a class="dropdown-item quick-status" href="#" data-item-id="{{ item.id }}" data-status="on_hold">On Hold</a></li>
+                                            <li><a class="dropdown-item quick-status" href="#" data-item-id="{{ item.id }}" data-status="dropped">Dropped</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if items.pages > 1 %}
+                <nav aria-label="Watchlist pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if items.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('watchlist.my_watchlist', page=items.prev_num, **request.args) }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in items.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != items.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('watchlist.my_watchlist', page=page_num, **request.args) }}">{{ page_num }}</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if items.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('watchlist.my_watchlist', page=items.next_num, **request.args) }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+            {% else %}
+                <!-- Empty State -->
+                <div class="text-center py-5">
+                    <i class="fas fa-list-ul fa-4x text-muted mb-3"></i>
+                    <h3 class="text-muted">Your watchlist is empty</h3>
+                    <p class="text-muted mb-4">Start building your watchlist by adding movies and TV shows you want to watch.</p>
+                    <a href="{{ url_for('content.index') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Browse Content
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Quick status update functionality
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.quick-status').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const itemId = this.dataset.itemId;
+            const newStatus = this.dataset.status;
+            
+            fetch(`{{ url_for('watchlist.api_quick_update_status', watchlist_id=0) }}`.replace('0', itemId) + 
+                  `?status=${newStatus}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message
+                        const alert = document.createElement('div');
+                        alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                        alert.style.top = '20px';
+                        alert.style.right = '20px';
+                        alert.style.zIndex = '9999';
+                        alert.innerHTML = `
+                            ${data.message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        `;
+                        document.body.appendChild(alert);
+                        
+                        // Auto-remove after 3 seconds
+                        setTimeout(() => {
+                            if (alert.parentNode) {
+                                alert.parentNode.removeChild(alert);
+                            }
+                        }, 3000);
+                        
+                        // Reload page to show updated status
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                });
+        });
+    });
+    
+    // Auto-submit filter form when values change
+    document.querySelectorAll('#filterForm select').forEach(function(select) {
+        select.addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+    });
+});
+</script>
+{% endblock %}

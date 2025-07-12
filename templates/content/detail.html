@@ -1,0 +1,678 @@
+{% extends "base.html" %}
+
+{% block title %}{{ content.title }} - Content Details{% endblock %}
+
+{% block extra_css %}
+<style>
+    .content-hero {
+        position: relative;
+        min-height: 60vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        color: white;
+        margin: -2rem -15px 0;
+        padding: 2rem 15px;
+    }
+    
+    .content-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 1;
+    }
+    
+    .hero-backdrop {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: 0;
+    }
+    
+    .hero-content {
+        position: relative;
+        z-index: 2;
+        max-width: 1200px;
+        margin: 0 auto;
+        width: 100%;
+    }
+    
+    .content-poster-large {
+        width: 300px;
+        height: 450px;
+        object-fit: cover;
+        border-radius: 12px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        margin-right: 2rem;
+    }
+    
+    .content-details {
+        flex: 1;
+    }
+    
+    .content-title-large {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    }
+    
+    .content-meta-large {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+    }
+    
+    .meta-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1rem;
+        border-radius: 8px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .meta-label {
+        font-size: 0.8rem;
+        opacity: 0.8;
+        margin-bottom: 0.5rem;
+    }
+    
+    .meta-value {
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+    
+    .content-description {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        margin-bottom: 2rem;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .btn-watchlist {
+        background: #e74c3c;
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .btn-watchlist:hover {
+        background: #c0392b;
+        transform: translateY(-2px);
+    }
+    
+    .btn-watchlist.in-list {
+        background: #27ae60;
+    }
+    
+    .btn-watchlist.in-list:hover {
+        background: #229954;
+    }
+    
+    .btn-trailer {
+        background: transparent;
+        border: 2px solid white;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+    
+    .btn-trailer:hover {
+        background: white;
+        color: #333;
+        text-decoration: none;
+    }
+    
+    .content-info-section {
+        background: white;
+        margin: 2rem 0;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 2rem;
+    }
+    
+    .info-item h6 {
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+    
+    .platforms-list {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+    
+    .platform-card {
+        display: flex;
+        align-items: center;
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        text-decoration: none;
+        color: #333;
+        transition: all 0.3s ease;
+    }
+    
+    .platform-card:hover {
+        background: #e9ecef;
+        text-decoration: none;
+        color: #333;
+    }
+    
+    .rating-section {
+        margin-top: 2rem;
+    }
+    
+    .user-rating {
+        background: #f39c12;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        display: inline-block;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+    
+    .rating-form {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+    }
+    
+    .rating-stars {
+        display: flex;
+        gap: 0.25rem;
+        margin-bottom: 1rem;
+    }
+    
+    .star {
+        font-size: 1.5rem;
+        color: #ddd;
+        cursor: pointer;
+        transition: color 0.2s ease;
+    }
+    
+    .star.active,
+    .star:hover {
+        color: #f39c12;
+    }
+    
+    .recommendations {
+        margin-top: 3rem;
+    }
+    
+    .recommendations-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+    
+    .recommendation-card {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .recommendation-card:hover {
+        transform: translateY(-5px);
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .recommendation-poster {
+        width: 100%;
+        height: 250px;
+        object-fit: cover;
+    }
+    
+    .recommendation-info {
+        padding: 1rem;
+    }
+    
+    .recommendation-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    .reviews-section {
+        margin-top: 2rem;
+    }
+    
+    .review-card {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        border-left: 4px solid #3498db;
+    }
+    
+    .review-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .review-rating {
+        background: #3498db;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    @media (max-width: 768px) {
+        .content-hero {
+            margin: -1rem -15px 0;
+            min-height: auto;
+            padding: 2rem 15px;
+        }
+        
+        .hero-content {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .content-poster-large {
+            width: 250px;
+            height: 375px;
+            margin-right: 0;
+            margin-bottom: 2rem;
+        }
+        
+        .content-title-large {
+            font-size: 2rem;
+        }
+        
+        .content-meta-large {
+            justify-content: center;
+        }
+        
+        .action-buttons {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="content-hero">
+    {% if content.backdrop_url %}
+    <img src="{{ content.backdrop_url }}" alt="{{ content.title }}" class="hero-backdrop">
+    {% endif %}
+    
+    <div class="hero-content">
+        <div class="row align-items-center">
+            <div class="col-lg-4 col-md-5 text-center text-md-left">
+                {% if content.poster_url %}
+                <img src="{{ content.poster_url }}" alt="{{ content.title }}" class="content-poster-large">
+                {% else %}
+                <div class="content-poster-large d-flex align-items-center justify-content-center bg-secondary text-white">
+                    <h4>{{ content.title }}</h4>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="col-lg-8 col-md-7">
+                <div class="content-details">
+                    <h1 class="content-title-large">{{ content.title }}</h1>
+                    
+                    <div class="content-meta-large">
+                        {% if content.year %}
+                        <div class="meta-item">
+                            <div class="meta-label">Year</div>
+                            <div class="meta-value">{{ content.year }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if content.rating %}
+                        <div class="meta-item">
+                            <div class="meta-label">Rating</div>
+                            <div class="meta-value">{{ "%.1f"|format(content.rating) }}/10</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if content.duration %}
+                        <div class="meta-item">
+                            <div class="meta-label">Duration</div>
+                            <div class="meta-value">{{ content.duration }}min</div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="meta-item">
+                            <div class="meta-label">Type</div>
+                            <div class="meta-value">{{ content.type.replace('_', ' ').title() }}</div>
+                        </div>
+                    </div>
+                    
+                    {% if content.description %}
+                    <p class="content-description">{{ content.description }}</p>
+                    {% endif %}
+                    
+                    <div class="action-buttons">
+                        <button class="btn-watchlist {% if watchlist_status %}in-list{% endif %}" 
+                                data-content-id="{{ content.id }}"
+                                data-status="{{ watchlist_status or 'none' }}"
+                                data-authenticated="{{ current_user.is_authenticated|lower }}">
+                            {% if current_user.is_authenticated %}
+                                {% if watchlist_status == 'want_to_watch' %}
+                                    <i class="fas fa-bookmark"></i> In Watchlist
+                                {% elif watchlist_status == 'watching' %}
+                                    <i class="fas fa-play"></i> Watching
+                                {% elif watchlist_status == 'watched' %}
+                                    <i class="fas fa-check"></i> Watched
+                                {% else %}
+                                    <i class="fas fa-plus"></i> Add to Watchlist
+                                {% endif %}
+                            {% else %}
+                                <i class="fas fa-plus"></i> Add to Watchlist
+                            {% endif %}
+                        </button>
+                        
+                        {% if content.trailer_url %}
+                        <a href="{{ content.trailer_url }}" target="_blank" class="btn-trailer">
+                            <i class="fas fa-play"></i> Watch Trailer
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Content Information -->
+<div class="container">
+    <div class="content-info-section">
+        <div class="info-grid">
+            {% if content.director %}
+            <div class="info-item">
+                <h6>Director</h6>
+                <p>{{ content.director }}</p>
+            </div>
+            {% endif %}
+            
+            {% if content.get_genres() %}
+            <div class="info-item">
+                <h6>Genres</h6>
+                <p>{{ content.get_genres()|join(', ') }}</p>
+            </div>
+            {% endif %}
+            
+            {% if content.get_cast() %}
+            <div class="info-item">
+                <h6>Cast</h6>
+                <p>{{ content.get_cast()[:5]|join(', ') }}{% if content.get_cast()|length > 5 %}, ...{% endif %}</p>
+            </div>
+            {% endif %}
+            
+            {% if content.country %}
+            <div class="info-item">
+                <h6>Country</h6>
+                <p>{{ content.country }}</p>
+            </div>
+            {% endif %}
+            
+            {% if content.language %}
+            <div class="info-item">
+                <h6>Language</h6>
+                <p>{{ content.language }}</p>
+            </div>
+            {% endif %}
+            
+            {% if content.get_average_rating() %}
+            <div class="info-item">
+                <h6>User Rating</h6>
+                <p>{{ "%.1f"|format(content.get_average_rating()) }}/10</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Available Platforms -->
+        {% if content.get_platforms() %}
+        <div class="mt-4">
+            <h6>Available On</h6>
+            <div class="platforms-list">
+                {% for platform in content.get_platforms() %}
+                <div class="platform-card">
+                    {% if platform.logo_url %}
+                    <img src="{{ platform.logo_url }}" alt="{{ platform.name }}" style="width: 30px; height: 30px; margin-right: 0.5rem;">
+                    {% endif %}
+                    <span>{{ platform.name }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- User Rating Section -->
+    {% if current_user.is_authenticated %}
+    <div class="content-info-section rating-section">
+        <h5>Your Rating</h5>
+        
+        {% if user_rating %}
+        <div class="user-rating">
+            <i class="fas fa-star"></i> {{ user_rating }}/10
+        </div>
+        {% endif %}
+        
+        <div class="rating-form">
+            <h6>Rate this content</h6>
+            <div class="rating-stars" data-content-id="{{ content.id }}">
+                {% for i in range(1, 11) %}
+                <span class="star" data-rating="{{ i }}">★</span>
+                {% endfor %}
+            </div>
+            <textarea id="review-text" 
+                     placeholder="Write a review (optional)..." 
+                     class="form-control mb-2"
+                     rows="3"></textarea>
+            <button id="submit-rating" class="btn btn-primary">Submit Rating</button>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- User Reviews -->
+    {% if reviews %}
+    <div class="content-info-section reviews-section">
+        <h5>User Reviews</h5>
+        
+        {% for review in reviews %}
+        <div class="review-card">
+            <div class="review-header">
+                <strong>{{ review.user.username }}</strong>
+                <span class="review-rating">{{ review.rating }}/10</span>
+            </div>
+            <p>{{ review.review }}</p>
+            <small class="text-muted">{{ review.created_at.strftime('%B %d, %Y') }}</small>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <!-- Recommendations -->
+    {% if recommendations %}
+    <div class="recommendations">
+        <h5>You might also like</h5>
+        
+        <div class="recommendations-grid">
+            {% for rec in recommendations %}
+            <a href="{{ url_for('content.detail', content_id=rec.id) }}" class="recommendation-card">
+                {% if rec.poster_url %}
+                <img src="{{ rec.poster_url }}" alt="{{ rec.title }}" class="recommendation-poster">
+                {% else %}
+                <div class="recommendation-poster d-flex align-items-center justify-content-center bg-secondary text-white">
+                    <small class="text-center">{{ rec.title }}</small>
+                </div>
+                {% endif %}
+                
+                <div class="recommendation-info">
+                    <div class="recommendation-title">{{ rec.title }}</div>
+                    <small class="text-muted">{{ rec.year or 'N/A' }}</small>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Watchlist functionality
+    const watchlistBtn = document.querySelector('.btn-watchlist');
+    if (watchlistBtn) {
+        watchlistBtn.addEventListener('click', function() {
+            const contentId = this.dataset.contentId;
+            const currentStatus = this.dataset.status;
+            const isAuthenticated = this.dataset.authenticated === 'true';
+            
+            // If user is not authenticated, show login prompt
+            if (!isAuthenticated) {
+                showLoginPrompt();
+                return;
+            }
+            
+            // If not in watchlist, redirect to add page
+            if (currentStatus === 'none') {
+                window.location.href = `{{ url_for('watchlist.add_to_watchlist', content_id=0) }}`.replace('0', contentId);
+            } else {
+                // If already in watchlist, redirect to watchlist page
+                window.location.href = '{{ url_for("watchlist.my_watchlist") }}';
+            }
+        });
+    }
+    
+    // Rating functionality
+    const stars = document.querySelectorAll('.star');
+    const reviewText = document.getElementById('review-text');
+    const submitBtn = document.getElementById('submit-rating');
+    let selectedRating = {{ user_rating or 0 }};
+    
+    // Initialize star display
+    updateStars(selectedRating);
+    
+    stars.forEach(star => {
+        star.addEventListener('click', function() {
+            selectedRating = parseInt(this.dataset.rating);
+            updateStars(selectedRating);
+        });
+        
+        star.addEventListener('mouseenter', function() {
+            const hoverRating = parseInt(this.dataset.rating);
+            updateStars(hoverRating);
+        });
+    });
+    
+    document.querySelector('.rating-stars').addEventListener('mouseleave', function() {
+        updateStars(selectedRating);
+    });
+    
+    function updateStars(rating) {
+        stars.forEach((star, index) => {
+            if (index < rating) {
+                star.classList.add('active');
+            } else {
+                star.classList.remove('active');
+            }
+        });
+    }
+    
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function() {
+            if (selectedRating === 0) {
+                alert('Please select a rating');
+                return;
+            }
+            
+            const contentId = document.querySelector('.rating-stars').dataset.contentId;
+            
+            fetch('/content/rate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content_id: contentId,
+                    rating: selectedRating,
+                    review: reviewText.value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Rating submitted successfully!');
+                    location.reload();
+                } else {
+                    alert('Error submitting rating: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error submitting rating');
+            });
+        });
+    }
+    
+    // Function to show login prompt for non-authenticated users
+    function showLoginPrompt() {
+        const contentTitle = '{{ content.title }}';
+        const message = `Sign up or log in to add "${contentTitle}" to your watchlist!`;
+        
+        if (confirm(message + '\n\nClick OK to go to login page, Cancel to register.')) {
+            window.location.href = '{{ url_for("auth.login") }}';
+        } else {
+            window.location.href = '{{ url_for("auth.register") }}';
+        }
+    }
+});
+</script>
+{% endblock %}

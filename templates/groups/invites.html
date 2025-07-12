@@ -279,9 +279,9 @@ function copyToClipboard(text) {
         }, 1000);
         
         // Show toast notification
-        showToast('Invite code copied to clipboard!', 'success');
+        notificationManager.showToast('Invite code copied to clipboard!', 'success');
     }).catch(function(err) {
-        showToast('Failed to copy to clipboard', 'error');
+        notificationManager.showToast('Failed to copy to clipboard', 'error');
     });
 }
 
@@ -299,47 +299,14 @@ function copyInviteLink(url) {
         }, 1000);
         
         // Show toast notification
-        showToast('Invite link copied to clipboard!', 'success');
+        notificationManager.showToast('Invite link copied to clipboard!', 'success');
     }).catch(function(err) {
-        showToast('Failed to copy to clipboard', 'error');
+        notificationManager.showToast('Failed to copy to clipboard', 'error');
     });
 }
 
-function showToast(message, type = 'info') {
-    // Create toast element
-    const toast = document.createElement('div');
-    toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'primary'} border-0`;
-    toast.setAttribute('role', 'alert');
-    toast.setAttribute('aria-live', 'assertive');
-    toast.setAttribute('aria-atomic', 'true');
-    
-    toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">${message}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    `;
-    
-    // Add to page
-    let toastContainer = document.querySelector('.toast-container');
-    if (!toastContainer) {
-        toastContainer = document.createElement('div');
-        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-        toastContainer.style.zIndex = '1055';
-        document.body.appendChild(toastContainer);
-    }
-    
-    toastContainer.appendChild(toast);
-    
-    // Show toast
-    const bsToast = new bootstrap.Toast(toast);
-    bsToast.show();
-    
-    // Remove from DOM after it's hidden
-    toast.addEventListener('hidden.bs.toast', () => {
-        toast.remove();
-    });
-}
+// Use centralized notification system
+const notificationManager = new NotificationManager();
 
 // Auto-hide expired status
 document.addEventListener('DOMContentLoaded', function() {

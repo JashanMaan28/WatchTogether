@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+
+{% block title %}{{ content.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero-section {
+        background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), 
+                    url('{{ content.backdrop_url or "/static/images/default-backdrop.jpg" }}') center/cover;
+        min-height: 70vh;
+        display: flex;
+        align-items: center;
+        color: white;
+        position: relative;
+    }
+    
+    .content-poster-large {
+        width: 300px;
+        height: 450px;
+        object-fit: cover;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    
+    .content-details {
+        flex: 1;
+        padding-left: 2rem;
+    }
+    
+    .content-title {
+        font-size: 3rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+    
+    .content-meta {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 2rem;
+        font-size: 1.1rem;
+    }
+    
+    .content-description {
+        font-size: 1.2rem;
+        line-height: 1.6;
+        margin-bottom: 2rem;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+    
+    .btn-watchlist {
+        background: #e50914;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-watchlist:hover {
+        background: #f40612;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(229, 9, 20, 0.4);
+    }
+    
+    .btn-watchlist.in-list {
+        background: #28a745;
+    }
+    
+    .btn-watchlist.in-list:hover {
+        background: #218838;
+    }
+    
+    .btn-trailer {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        border: 2px solid white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-trailer:hover {
+        background: white;
+        color: #333;
+    }
+    
+    .content-info-section {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .meta-item {
+        text-align: center;
+        padding: 1rem;
+        border: 1px solid #eee;
+        border-radius: 8px;
+    }
+    
+    .meta-label {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 0.5rem;
+    }
+    
+    .meta-value {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .recommendations-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+    
+    .rec-card {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .rec-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .rec-poster {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+    }
+    
+    .rec-title {
+        padding: 0.5rem;
+        font-size: 0.9rem;
+        font-weight: bold;
+        text-align: center;
+    }
+    
+    @media (max-width: 768px) {
+        .hero-section {
+            flex-direction: column;
+            text-align: center;
+            padding: 2rem 1rem;
+        }
+        
+        .content-poster-large {
+            width: 200px;
+            height: 300px;
+            margin-bottom: 1rem;
+        }
+        
+        .content-details {
+            padding-left: 0;
+        }
+        
+        .content-title {
+            font-size: 2rem;
+        }
+        
+        .content-meta {
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-4 text-center">
+                {% if content.poster_url %}
+                    <img src="{{ content.poster_url }}" alt="{{ content.title }}" class="content-poster-large">
+                {% else %}
+                    <div class="content-poster-large d-flex align-items-center justify-content-center bg-secondary text-white">
+                        <i class="fas fa-film fa-4x"></i>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="col-md-8">
+                <div class="content-details">
+                    <h1 class="content-title">{{ content.title }}</h1>
+                    
+                    <div class="content-meta">
+                        {% if content.year %}
+                        <span><i class="fas fa-calendar"></i> {{ content.year }}</span>
+                        {% endif %}
+                        
+                        {% if content.rating %}
+                        <span><i class="fas fa-star"></i> {{ "%.1f"|format(content.rating) }}/10</span>
+                        {% endif %}
+                        
+                        {% if content.duration %}
+                        <span><i class="fas fa-clock"></i> {{ content.duration }} min</span>
+                        {% endif %}
+                        
+                        {% if content.type %}
+                        <span><i class="fas fa-tag"></i> 
+                            {% if content.type == 'tv_show' %}TV Show{% else %}Movie{% endif %}
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if content.description %}
+                    <p class="content-description">{{ content.description }}</p>
+                    {% endif %}
+                    
+                    <div class="action-buttons">
+                        <button class="btn-watchlist {% if watchlist_status %}in-list{% endif %}" 
+                                data-tmdb-id="{{ content.tmdb_id }}"
+                                data-content-type="{{ content.content_type }}"
+                                data-status="{{ watchlist_status or 'none' }}"
+                                data-authenticated="{{ current_user.is_authenticated|lower }}">
+                            {% if current_user.is_authenticated %}
+                                {% if watchlist_status == 'want_to_watch' %}
+                                    <i class="fas fa-bookmark"></i> In Watchlist
+                                {% elif watchlist_status == 'watching' %}
+                                    <i class="fas fa-play"></i> Watching
+                                {% elif watchlist_status == 'watched' %}
+                                    <i class="fas fa-check"></i> Watched
+                                {% else %}
+                                    <i class="fas fa-plus"></i> Add to Watchlist
+                                {% endif %}
+                            {% else %}
+                                <i class="fas fa-plus"></i> Add to Watchlist
+                            {% endif %}
+                        </button>
+                        
+                        {% if content.trailer_url %}
+                        <a href="{{ content.trailer_url }}" target="_blank" class="btn-trailer">
+                            <i class="fas fa-play"></i> Watch Trailer
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container mt-4">
+    <!-- Content Info -->
+    <div class="content-info-section">
+        <h5>Details</h5>
+        <div class="meta-grid">
+            {% if content.genres %}
+            <div class="meta-item">
+                <div class="meta-label">Genres</div>
+                <div class="meta-value">{{ ', '.join(content.genres) }}</div>
+            </div>
+            {% endif %}
+            
+            {% if content.director %}
+            <div class="meta-item">
+                <div class="meta-label">Director</div>
+                <div class="meta-value">{{ content.director }}</div>
+            </div>
+            {% endif %}
+            
+            {% if content.cast %}
+            <div class="meta-item">
+                <div class="meta-label">Cast</div>
+                <div class="meta-value">{{ ', '.join(content.cast[:3]) }}{% if content.cast|length > 3 %}, ...{% endif %}</div>
+            </div>
+            {% endif %}
+            
+            {% if content.country %}
+            <div class="meta-item">
+                <div class="meta-label">Country</div>
+                <div class="meta-value">{{ content.country }}</div>
+            </div>
+            {% endif %}
+            
+            {% if content.language %}
+            <div class="meta-item">
+                <div class="meta-label">Language</div>
+                <div class="meta-value">{{ content.language|upper }}</div>
+            </div>
+            {% endif %}
+            
+            {% if content.imdb_id %}
+            <div class="meta-item">
+                <div class="meta-label">IMDB</div>
+                <div class="meta-value">
+                    <a href="https://www.imdb.com/title/{{ content.imdb_id }}" target="_blank" class="text-decoration-none">
+                        View on IMDB <i class="fas fa-external-link-alt"></i>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- User Reviews -->
+    {% if reviews %}
+    <div class="content-info-section">
+        <h5>User Reviews</h5>
+        {% for review in reviews %}
+        <div class="border-bottom pb-3 mb-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <strong>{{ review.user.username }}</strong>
+                <span class="badge bg-primary">{{ review.rating }}/10</span>
+            </div>
+            <p class="mb-1">{{ review.review }}</p>
+            <small class="text-muted">{{ review.created_at.strftime('%B %d, %Y') }}</small>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <!-- Recommendations -->
+    {% if recommendations %}
+    <div class="content-info-section">
+        <h5>Similar Content</h5>
+        <div class="recommendations-grid">
+            {% for rec in recommendations %}
+            <div class="rec-card" onclick="window.location.href='{{ url_for('content.detail', tmdb_id=rec.tmdb_id, content_type=rec.type) }}'">
+                {% if rec.poster_url %}
+                    <img src="{{ rec.poster_url }}" alt="{{ rec.title }}" class="rec-poster">
+                {% else %}
+                    <div class="rec-poster d-flex align-items-center justify-content-center bg-light">
+                        <i class="fas fa-film fa-2x text-muted"></i>
+                    </div>
+                {% endif %}
+                <div class="rec-title">{{ rec.title }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Watchlist functionality
+    const watchlistBtn = document.querySelector('.btn-watchlist');
+    if (watchlistBtn) {
+        watchlistBtn.addEventListener('click', function() {
+            const tmdbId = this.dataset.tmdbId;
+            const contentType = this.dataset.contentType;
+            const currentStatus = this.dataset.status;
+            const isAuthenticated = this.dataset.authenticated === 'true';
+            
+            // If user is not authenticated, show login prompt
+            if (!isAuthenticated) {
+                showLoginPrompt();
+                return;
+            }
+            
+            // If not in watchlist, add it
+            if (currentStatus === 'none') {
+                addToWatchlist(tmdbId, contentType, 'want_to_watch');
+            } else {
+                // If already in watchlist, redirect to watchlist page
+                window.location.href = '{{ url_for("watchlist.my_watchlist") }}';
+            }
+        });
+    }
+    
+    // Function to add to watchlist
+    function addToWatchlist(tmdbId, contentType, status) {
+        fetch('{{ url_for("content.toggle_watchlist") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                tmdb_id: tmdbId,
+                content_type: contentType,
+                status: status
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error adding to watchlist');
+        });
+    }
+    
+    // Function to show login prompt for non-authenticated users
+    function showLoginPrompt() {
+        const contentTitle = '{{ content.title }}';
+        const message = `Sign up or log in to add "${contentTitle}" to your watchlist!`;
+        
+        if (confirm(message + '\n\nClick OK to go to login page, Cancel to register.')) {
+            window.location.href = '{{ url_for("auth.login") }}';
+        } else {
+            window.location.href = '{{ url_for("auth.register") }}';
+        }
+    }
+});
+</script>
+{% endblock %}

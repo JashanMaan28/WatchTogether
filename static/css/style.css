@@ -35,33 +35,9 @@ body {
     font-size: 1.5rem;
 }
 
-.card {
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    border: none;
-    border-radius: 12px;
-}
 
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
 
-/* Buttons */
-.btn {
-    border-radius: 8px;
-    font-weight: 500;
-    transition: all 0.2s ease-in-out;
-}
 
-.btn-primary {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
-    border: none;
-}
-
-.btn-primary:hover {
-    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
-    transform: translateY(-1px);
-}
 
 /* Forms */
 .form-control {
