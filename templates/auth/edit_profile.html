@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="bi bi-person-gear"></i> Edit Profile
+                </h4>
+                <p class="text-muted mb-0">Update your account information and settings</p>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Profile Picture Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-4 text-center">
+                            <div class="profile-picture-section">
+                                <img src="{{ current_user.get_profile_picture_url() }}" 
+                                     alt="Current profile picture" 
+                                     class="rounded-circle img-fluid mb-3"
+                                     style="width: 150px; height: 150px; object-fit: cover; border: 4px solid #f8f9fa;"
+                                     id="profilePreview">
+                                
+                                <h6 class="text-muted">Current Picture</h6>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                {{ form.profile_picture.label(class="form-label fw-semibold") }}
+                                {{ form.profile_picture(class="form-control" + (" is-invalid" if form.profile_picture.errors else ""), accept="image/*", onchange="previewImage(this)") }}
+                                {% if form.profile_picture.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.profile_picture.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle"></i> Choose a JPG, JPEG, PNG, or GIF image. Max file size: 5MB
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="alert alert-info">
+                                <i class="bi bi-lightbulb"></i>
+                                <strong>Tip:</strong> A clear, high-quality photo works best. Your image will be automatically resized to 150x150 pixels.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <!-- Basic Information -->
+                    <h6 class="mb-3"><i class="bi bi-person-card"></i> Basic Information</h6>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.username.label(class="form-label fw-semibold") }}
+                            {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""), placeholder="Enter your username") }}
+                            {% if form.username.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.username.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle"></i> 3-20 characters, letters, numbers, and underscores only
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.email.label(class="form-label fw-semibold") }}
+                            {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), placeholder="your@email.com") }}
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.email.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="form-text">
+                                    <i class="bi bi-shield-check"></i> We'll never share your email with anyone
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Bio Section -->
+                    <div class="mb-4">
+                        {{ form.bio.label(class="form-label fw-semibold") }}
+                        {{ form.bio(class="form-control" + (" is-invalid" if form.bio.errors else ""), placeholder="Tell us a bit about yourself...", rows="4") }}
+                        {% if form.bio.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.bio.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="form-text">
+                                <i class="bi bi-chat-text"></i> Optional. Maximum 500 characters.
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a href="{{ url_for('auth.profile') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Account Security Notice -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="bi bi-shield-exclamation text-warning"></i> 
+                    Account Security
+                </h6>
+                <p class="card-text text-muted mb-3">
+                    Keep your account secure by regularly updating your password and monitoring your account activity.
+                </p>
+                <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline-warning btn-sm">
+                    <i class="bi bi-lock"></i> Change Password
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function previewImage(input) {
+    const preview = document.getElementById('profilePreview');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+        }
+        
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Form validation feedback
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const submitBtn = document.querySelector('button[type="submit"]');
+    
+    form.addEventListener('submit', function() {
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Updating...';
+        submitBtn.disabled = true;
+    });
+});
+</script>
+{% endblock %}

@@ -2,59 +2,169 @@
 
 {% block title %}Register - WatchTogether{% endblock %}
 
+{% block extra_css %}
+<style>
+    .password-strength {
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+    .strength-indicator {
+        height: 4px;
+        border-radius: 2px;
+        transition: all 0.3s ease;
+    }
+    .strength-weak { background-color: #dc3545; }
+    .strength-medium { background-color: #ffc107; }
+    .strength-strong { background-color: #198754; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
-        <div class="card shadow">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-lg auth-card">
             <div class="card-body">
-                <h3 class="card-title text-center mb-4">Create Account</h3>
+                <div class="text-center mb-4">
+                    <i class="bi bi-person-plus-fill text-primary" style="font-size: 3rem;"></i>
+                    <h3 class="card-title mt-2">Join WatchTogether</h3>
+                    <p class="text-muted">Create your account to get started</p>
+                </div>
                 
-                <form method="POST">
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" name="username" required>
-                        <div class="form-text">Choose a unique username for your account.</div>
+                <form method="POST" id="registrationForm">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.username.label(class="form-label") }}
+                            {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""), placeholder="Choose a username") }}
+                            {% if form.username.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.username.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle"></i> 3-20 characters, letters, numbers, and underscores only
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.email.label(class="form-label") }}
+                            {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), placeholder="your@email.com") }}
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.email.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="form-text">
+                                    <i class="bi bi-shield-check"></i> We'll never share your email
+                                </div>
+                            {% endif %}
+                        </div>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" name="email" required>
+                        {{ form.password.label(class="form-label") }}
+                        {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), placeholder="Create a strong password", id="password") }}
+                        {% if form.password.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.password.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Password Strength Indicator -->
+                        <div class="password-strength mt-2">
+                            <div class="d-flex align-items-center">
+                                <small class="me-2">Password strength:</small>
+                                <div class="strength-indicator flex-grow-1" id="strengthBar"></div>
+                                <small id="strengthText" class="ms-2 text-muted">Enter password</small>
+                            </div>
+                            <div class="mt-1">
+                                <small class="text-muted">
+                                    <i class="bi bi-check-circle text-success" id="lengthCheck" style="display: none;"></i>
+                                    <i class="bi bi-circle text-muted" id="lengthCheckEmpty"></i>
+                                    8+ characters
+                                    
+                                    <i class="bi bi-check-circle text-success ms-2" id="upperCheck" style="display: none;"></i>
+                                    <i class="bi bi-circle text-muted ms-2" id="upperCheckEmpty"></i>
+                                    Uppercase
+                                    
+                                    <i class="bi bi-check-circle text-success ms-2" id="lowerCheck" style="display: none;"></i>
+                                    <i class="bi bi-circle text-muted ms-2" id="lowerCheckEmpty"></i>
+                                    Lowercase
+                                    
+                                    <i class="bi bi-check-circle text-success ms-2" id="numberCheck" style="display: none;"></i>
+                                    <i class="bi bi-circle text-muted ms-2" id="numberCheckEmpty"></i>
+                                    Number
+                                    
+                                    <i class="bi bi-check-circle text-success ms-2" id="specialCheck" style="display: none;"></i>
+                                    <i class="bi bi-circle text-muted ms-2" id="specialCheckEmpty"></i>
+                                    Special char
+                                </small>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
-                        <div class="form-text">Choose a strong password with at least 8 characters.</div>
+                        {{ form.confirm_password.label(class="form-label") }}
+                        {{ form.confirm_password(class="form-control" + (" is-invalid" if form.confirm_password.errors else ""), placeholder="Confirm your password", id="confirmPassword") }}
+                        {% if form.confirm_password.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.confirm_password.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div id="passwordMatch" class="form-text"></div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="confirm_password" class="form-label">Confirm Password</label>
-                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
-                    </div>
-                    
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="terms" required>
-                        <label class="form-check-label" for="terms">
-                            I agree to the <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">Terms of Service</a>
-                        </label>
+                    <div class="mb-4">
+                        <div class="form-check">
+                            {{ form.terms(class="form-check-input" + (" is-invalid" if form.terms.errors else "")) }}
+                            {{ form.terms.label(class="form-check-label") }}
+                            I agree to the <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal" class="text-decoration-none">Terms of Service</a> and <a href="#" class="text-decoration-none">Privacy Policy</a>
+                            {% if form.terms.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.terms.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
                     </div>
                     
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Create Account</button>
+                        {{ form.submit(class="btn btn-primary btn-lg", id="submitBtn") }}
                     </div>
                 </form>
                 
-                <hr>
+                <hr class="my-4">
                 
                 <div class="text-center">
-                    <p class="mb-0">Already have an account? <a href="{{ url_for('auth.login') }}">Sign in here</a></p>
+                    <p class="mb-0">Already have an account? 
+                        <a href="{{ url_for('auth.login') }}" class="text-decoration-none fw-semibold">Sign in here</a>
+                    </p>
                 </div>
             </div>
+        </div>
+        
+        <!-- Security Info -->
+        <div class="text-center mt-3">
+            <small class="text-muted">
+                <i class="bi bi-shield-lock"></i> 
+                Your data is protected with end-to-end encryption
+            </small>
         </div>
     </div>
 </div>
 
-<!-- Terms Modal -->
+<!-- Terms of Service Modal -->
 <div class="modal fade" id="termsModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -64,16 +174,19 @@
             </div>
             <div class="modal-body">
                 <h6>1. Acceptance of Terms</h6>
-                <p>By using WatchTogether, you agree to these terms of service.</p>
+                <p>By creating an account on WatchTogether, you agree to comply with and be bound by these terms.</p>
                 
-                <h6>2. User Conduct</h6>
-                <p>Users must behave respectfully and follow community guidelines.</p>
+                <h6>2. User Responsibilities</h6>
+                <p>You are responsible for maintaining the confidentiality of your account and password.</p>
                 
-                <h6>3. Privacy</h6>
-                <p>We respect your privacy and protect your personal information.</p>
+                <h6>3. Content Guidelines</h6>
+                <p>Users must not post content that is offensive, illegal, or violates others' rights.</p>
                 
-                <h6>4. Content</h6>
-                <p>Users are responsible for the content they share.</p>
+                <h6>4. Privacy</h6>
+                <p>We respect your privacy and will protect your personal information as outlined in our Privacy Policy.</p>
+                
+                <h6>5. Account Termination</h6>
+                <p>We reserve the right to terminate accounts that violate these terms.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -81,4 +194,99 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const strengthBar = document.getElementById('strengthBar');
+    const strengthText = document.getElementById('strengthText');
+    
+    // Password strength checking
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        const strength = checkPasswordStrength(password);
+        updatePasswordStrength(strength);
+        checkPasswordRequirements(password);
+    });
+    
+    // Password confirmation checking
+    confirmPasswordInput.addEventListener('input', function() {
+        const password = passwordInput.value;
+        const confirmPassword = this.value;
+        const matchDiv = document.getElementById('passwordMatch');
+        
+        if (confirmPassword.length > 0) {
+            if (password === confirmPassword) {
+                matchDiv.innerHTML = '<i class="bi bi-check-circle text-success"></i> <span class="text-success">Passwords match</span>';
+            } else {
+                matchDiv.innerHTML = '<i class="bi bi-x-circle text-danger"></i> <span class="text-danger">Passwords do not match</span>';
+            }
+        } else {
+            matchDiv.innerHTML = '';
+        }
+    });
+    
+    function checkPasswordStrength(password) {
+        let score = 0;
+        
+        if (password.length >= 8) score++;
+        if (/[A-Z]/.test(password)) score++;
+        if (/[a-z]/.test(password)) score++;
+        if (/\d/.test(password)) score++;
+        if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score++;
+        
+        return score;
+    }
+    
+    function updatePasswordStrength(score) {
+        const bar = strengthBar;
+        const text = strengthText;
+        
+        bar.className = 'strength-indicator flex-grow-1';
+        
+        if (score === 0) {
+            text.textContent = 'Enter password';
+            text.className = 'ms-2 text-muted';
+        } else if (score <= 2) {
+            bar.classList.add('strength-weak');
+            text.textContent = 'Weak';
+            text.className = 'ms-2 text-danger';
+        } else if (score <= 4) {
+            bar.classList.add('strength-medium');
+            text.textContent = 'Medium';
+            text.className = 'ms-2 text-warning';
+        } else {
+            bar.classList.add('strength-strong');
+            text.textContent = 'Strong';
+            text.className = 'ms-2 text-success';
+        }
+    }
+    
+    function checkPasswordRequirements(password) {
+        const requirements = [
+            { test: password.length >= 8, checkId: 'lengthCheck', emptyId: 'lengthCheckEmpty' },
+            { test: /[A-Z]/.test(password), checkId: 'upperCheck', emptyId: 'upperCheckEmpty' },
+            { test: /[a-z]/.test(password), checkId: 'lowerCheck', emptyId: 'lowerCheckEmpty' },
+            { test: /\d/.test(password), checkId: 'numberCheck', emptyId: 'numberCheckEmpty' },
+            { test: /[!@#$%^&*(),.?":{}|<>]/.test(password), checkId: 'specialCheck', emptyId: 'specialCheckEmpty' }
+        ];
+        
+        requirements.forEach(req => {
+            const checkIcon = document.getElementById(req.checkId);
+            const emptyIcon = document.getElementById(req.emptyId);
+            
+            if (req.test) {
+                checkIcon.style.display = 'inline';
+                emptyIcon.style.display = 'none';
+            } else {
+                checkIcon.style.display = 'none';
+                emptyIcon.style.display = 'inline';
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

@@ -25,6 +25,13 @@ def create_app(config_name=None):
     login_manager.login_message = 'Please log in to access this page.'
     login_manager.login_message_category = 'info'
     
+    # User loader function for Flask-Login
+    from models import User
+    
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
+    
     # Register blueprints
     from routes.main import main as main_blueprint
     app.register_blueprint(main_blueprint)

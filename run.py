@@ -1,14 +1,9 @@
-from app import create_app, db, login_manager
+from app import create_app, db
 from models import User
 import os
 
 # Create Flask application
 app = create_app(os.environ.get('FLASK_ENV', 'development'))
-
-# User loader for Flask-Login
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
 
 # Shell context for Flask CLI
 @app.shell_context_processor

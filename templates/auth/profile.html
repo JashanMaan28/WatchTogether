@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.username }}'s Profile - WatchTogether{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <!-- Profile Card -->
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                <div class="profile-picture-container mb-3">
+                    <img src="{{ user.get_profile_picture_url() }}" 
+                         alt="{{ user.username }}'s profile picture" 
+                         class="rounded-circle img-fluid profile-picture"
+                         style="width: 150px; height: 150px; object-fit: cover;">
+                </div>
+                
+                <h4 class="card-title mb-1">{{ user.username }}</h4>
+                <p class="text-muted mb-3">{{ user.email }}</p>
+                
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('auth.edit_profile') }}" class="btn btn-primary">
+                        <i class="bi bi-pencil-square"></i> Edit Profile
+                    </a>
+                    <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-lock"></i> Change Password
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Account Info -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Account Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Member Since</label>
+                    <p class="mb-0">{{ user.created_at.strftime('%B %d, %Y') }}</p>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Account Status</label>
+                    <p class="mb-0">
+                        {% if user.is_active %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle"></i> Active
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger">
+                                <i class="bi bi-x-circle"></i> Inactive
+                            </span>
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <div class="mb-0">
+                    <label class="form-label fw-semibold">User ID</label>
+                    <p class="mb-0 text-muted font-monospace">#{{ user.id }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <!-- Welcome Section -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h3 class="card-title">
+                    Welcome back, {{ user.username }}! 
+                    <i class="bi bi-emoji-smile text-primary"></i>
+                </h3>
+                <p class="card-text text-muted">
+                    Here's your profile dashboard where you can manage your account settings and preferences.
+                </p>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card border-0 bg-light h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-gear text-primary" style="font-size: 2rem;"></i>
+                                <h6 class="mt-2">Account Settings</h6>
+                                <p class="small text-muted">Update your profile information and preferences</p>
+                                <a href="{{ url_for('auth.edit_profile') }}" class="btn btn-sm btn-outline-primary">
+                                    Manage Settings
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card border-0 bg-light h-100">
+                            <div class="card-body text-center">
+                                <i class="bi bi-shield-lock text-success" style="font-size: 2rem;"></i>
+                                <h6 class="mt-2">Security</h6>
+                                <p class="small text-muted">Change your password and security settings</p>
+                                <a href="{{ url_for('auth.change_password') }}" class="btn btn-sm btn-outline-success">
+                                    Update Security
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Activity Summary -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-activity"></i> Account Summary</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <div class="border-end">
+                            <h4 class="text-primary mb-1">0</h4>
+                            <small class="text-muted">Days as Member</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border-end">
+                            <h4 class="text-success mb-1">
+                                <i class="bi bi-check-circle"></i>
+                            </h4>
+                            <small class="text-muted">Verified Account</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h4 class="text-info mb-1">
+                            <i class="bi bi-person-circle"></i>
+                        </h4>
+                        <small class="text-muted">Profile Complete</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Activity -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-clock-history"></i> Recent Activity</h6>
+                <small class="text-muted">Last 7 days</small>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="d-flex align-items-start mb-3">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary rounded-circle p-2">
+                                <i class="bi bi-person-check text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-1">Account Login</h6>
+                            <p class="text-muted small mb-0">You signed in to your account</p>
+                            <small class="text-muted">Today</small>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-start mb-3">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success rounded-circle p-2">
+                                <i class="bi bi-person-plus text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-1">Account Created</h6>
+                            <p class="text-muted small mb-0">You joined WatchTogether</p>
+                            <small class="text-muted">{{ user.created_at.strftime('%B %d, %Y') }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-picture {
+        border: 4px solid #f8f9fa;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .timeline {
+        position: relative;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e9ecef;
+    }
+</style>
+{% endblock %}
