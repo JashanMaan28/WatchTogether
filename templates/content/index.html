@@ -324,7 +324,7 @@
             <div class="content-grid">
                 {% for content_item in contents.items %}
                 <div class="content-card">
-                    <a href="{{ url_for('content.detail', content_id=content_item.id) }}" style="text-decoration: none; color: inherit;">
+                    <a href="{{ url_for('content.detail', tmdb_id=content_item.tmdb_id, content_type=content_item.type) }}" style="text-decoration: none; color: inherit;">
                         {% if content_item.poster_url %}
                         <img src="{{ content_item.poster_url }}" 
                              alt="{{ content_item.title }}" 

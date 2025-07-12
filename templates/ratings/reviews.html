@@ -1,0 +1,464 @@
+{% extends "base.html" %}
+
+{% block title %}Reviews for {{ content.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.rating-star {
+    color: #ffc107;
+    font-size: 1.2em;
+}
+.rating-star.empty {
+    color: #e9ecef;
+}
+.review-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+.review-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+.rating-distribution {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.vote-btn {
+    transition: all 0.2s ease-in-out;
+}
+.vote-btn:hover {
+    transform: translateY(-1px);
+}
+.spoiler-content {
+    background: linear-gradient(45deg, #ffe066, #ff6b6b);
+    background-size: 200% 200%;
+    animation: gradient 3s ease infinite;
+}
+@keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-10">
+            <!-- Content Header -->
+            <div class="card shadow-lg mb-4 border-0">
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            {% if content.poster_url %}
+                                <img src="{{ content.poster_url }}" alt="{{ content.title }}" 
+                                     class="rounded shadow" style="width: 100px; height: 150px; object-fit: cover;">
+                            {% else %}
+                                <div class="bg-light rounded d-flex align-items-center justify-content-center text-muted" 
+                                     style="width: 100px; height: 150px;">
+                                    <i class="fas fa-film fa-2x"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col">
+                            <h1 class="display-6 fw-bold text-dark mb-2">{{ content.title }}</h1>
+                            {% if content.year %}
+                                <p class="text-muted mb-3 fs-5">{{ content.year }}</p>
+                            {% endif %}
+                            
+                            {% if content.get_average_rating() %}
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="me-3">
+                                        {% for i in range(1, 6) %}
+                                            {% if i <= content.get_average_rating() %}
+                                                <i class="fas fa-star rating-star"></i>
+                                            {% else %}
+                                                <i class="fas fa-star rating-star empty"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    <span class="h5 fw-bold me-2">{{ "%.1f"|format(content.get_average_rating()) }}</span>
+                                    <span class="text-muted">({{ content.get_rating_count() }} ratings, {{ content.get_review_count() }} reviews)</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-auto">
+                            <a href="{{ url_for('ratings.rate_content', content_id=content.id) }}" 
+                               class="btn btn-primary btn-lg">
+                                <i class="fas fa-star me-2"></i>Add Your Rating
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sorting and Rating Distribution -->
+            <div class="card shadow-lg mb-4 border-0">
+                <div class="card-body p-4">
+                    <div class="row g-4">
+                        <!-- Rating Distribution -->
+                        <div class="col-lg-7">
+                            <h5 class="card-title fw-bold mb-4">
+                                <i class="fas fa-chart-bar me-2 text-primary"></i>Rating Distribution
+                            </h5>
+                            <div class="rating-distribution text-white p-4 rounded">
+                                {% for rating, percentage in content.get_rating_distribution().items() %}
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="me-3" style="min-width: 3rem;">
+                                            <span class="fw-bold">{{ rating }}</span>
+                                            <i class="fas fa-star"></i>
+                                        </div>
+                                        <div class="flex-grow-1 me-3">
+                                            <div class="progress" style="height: 8px;">
+                                                <div class="progress-bar bg-warning" role="progressbar" 
+                                                     data-percentage="{{ percentage }}"
+                                                     aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div style="min-width: 3rem;" class="text-end">
+                                            <small class="fw-bold">{{ percentage }}%</small>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- Sort Options -->
+                        <div class="col-lg-5">
+                            <h5 class="card-title fw-bold mb-4">
+                                <i class="fas fa-sort me-2 text-primary"></i>Sort Reviews
+                            </h5>
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('ratings.view_reviews', content_id=content.id, sort='newest') }}" 
+                                   class="btn {% if sort_by == 'newest' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                                    <i class="fas fa-clock me-2"></i>Newest First
+                                </a>
+                                <a href="{{ url_for('ratings.view_reviews', content_id=content.id, sort='oldest') }}" 
+                                   class="btn {% if sort_by == 'oldest' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                                    <i class="fas fa-history me-2"></i>Oldest First
+                                </a>
+                                <a href="{{ url_for('ratings.view_reviews', content_id=content.id, sort='helpful') }}" 
+                                   class="btn {% if sort_by == 'helpful' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                                    <i class="fas fa-thumbs-up me-2"></i>Most Helpful
+                                </a>
+                                <a href="{{ url_for('ratings.view_reviews', content_id=content.id, sort='rating_high') }}" 
+                                   class="btn {% if sort_by == 'rating_high' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                                    <i class="fas fa-arrow-up me-2"></i>Highest Rated
+                                </a>
+                                <a href="{{ url_for('ratings.view_reviews', content_id=content.id, sort='rating_low') }}" 
+                                   class="btn {% if sort_by == 'rating_low' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                                    <i class="fas fa-arrow-down me-2"></i>Lowest Rated
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reviews List -->
+            <div class="row g-4">
+                {% for review in reviews.items %}
+                    <div class="col-12">
+                        <div class="card review-card shadow border-0" data-review-id="{{ review.id }}">
+                            <div class="card-body p-4">
+                                <!-- Review Header -->
+                                <div class="d-flex align-items-start justify-content-between mb-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">
+                                            {% if review.user.profile_picture and review.user.profile_picture != 'default.jpg' %}
+                                                <img src="{{ url_for('static', filename='uploads/profile_pics/' + review.user.profile_picture) }}" 
+                                                     alt="{{ review.user.username }}" 
+                                                     class="rounded-circle" style="width: 50px; height: 50px; object-fit: cover;">
+                                            {% else %}
+                                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
+                                                     style="width: 50px; height: 50px;">
+                                                    <span class="fw-bold">{{ review.user.username[0]|upper }}</span>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div>
+                                            <h6 class="mb-1 fw-bold">{{ review.user.get_full_name() }}</h6>
+                                            <p class="mb-1 text-muted small">@{{ review.user.username }}</p>
+                                            
+                                            <!-- Rating Stars -->
+                                            <div class="d-flex align-items-center">
+                                                {% for i in range(1, 6) %}
+                                                    {% if i <= review.rating %}
+                                                        <i class="fas fa-star rating-star small me-1"></i>
+                                                    {% else %}
+                                                        <i class="fas fa-star rating-star empty small me-1"></i>
+                                                    {% endif %}
+                                                {% endfor %}
+                                                <span class="ms-2 small text-muted">{{ review.rating }}/5</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="text-end">
+                                        <p class="small text-muted mb-1">{{ review.created_at.strftime('%B %d, %Y') }}</p>
+                                        {% if review.updated_at != review.created_at %}
+                                            <p class="small text-muted mb-2">Updated {{ review.updated_at.strftime('%B %d, %Y') }}</p>
+                                        {% endif %}
+                                        
+                                        {% if current_user.is_authenticated and review.user_id == current_user.id %}
+                                            <div class="d-flex gap-2 justify-content-end">
+                                                <a href="{{ url_for('ratings.edit_rating', rating_id=review.id) }}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-edit me-1"></i>Edit
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                        data-bs-toggle="modal" data-bs-target="#deleteModal{{ review.id }}">
+                                                    <i class="fas fa-trash me-1"></i>Delete
+                                                </button>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Spoiler Warning -->
+                                {% if review.is_spoiler %}
+                                    <div class="alert spoiler-content border-0 mb-3">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                <strong class="text-dark">Spoiler Warning</strong>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-dark spoiler-toggle" 
+                                                    data-review-id="{{ review.id }}">
+                                                Show Review
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                <!-- Review Text -->
+                                {% if review.review_text %}
+                                    <div class="review-text {% if review.is_spoiler %}d-none{% endif %}" id="review-text-{{ review.id }}">
+                                        <div class="border-start border-primary border-4 ps-3 mb-3">
+                                            <p class="mb-0 text-dark lh-base">{{ review.review_text }}</p>
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                <!-- Helpfulness Voting -->
+                                {% if current_user.is_authenticated and review.user_id != current_user.id %}
+                                    <div class="border-top pt-3">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="d-flex align-items-center">
+                                                <span class="me-3 small text-muted">Was this review helpful?</span>
+                                                <div class="btn-group" role="group">
+                                                    <button type="button" class="btn btn-sm vote-btn {% if user_votes.get(review.id) == true %}btn-success{% else %}btn-outline-success{% endif %}" 
+                                                            data-review-id="{{ review.id }}" data-helpful="true">
+                                                        <i class="fas fa-thumbs-up me-1"></i>Helpful
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm vote-btn {% if user_votes.get(review.id) == false %}btn-danger{% else %}btn-outline-danger{% endif %}" 
+                                                            data-review-id="{{ review.id }}" data-helpful="false">
+                                                        <i class="fas fa-thumbs-down me-1"></i>Not Helpful
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="small text-muted">
+                                                <span id="helpful-count-{{ review.id }}">{{ review.helpful_votes }}</span> of 
+                                                <span id="total-count-{{ review.id }}">{{ review.total_votes }}</span> found helpful
+                                                {% if review.total_votes > 0 %}
+                                                    (<span id="percentage-{{ review.id }}">{{ review.get_helpfulness_percentage() }}</span>%)
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% elif review.total_votes > 0 %}
+                                    <div class="border-top pt-3">
+                                        <div class="text-end small text-muted">
+                                            {{ review.helpful_votes }} of {{ review.total_votes }} found helpful
+                                            ({{ review.get_helpfulness_percentage() }}%)
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if reviews.pages > 1 %}
+                <div class="d-flex justify-content-center mt-5">
+                    <nav aria-label="Reviews pagination">
+                        <ul class="pagination pagination-lg">
+                            {% if reviews.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('ratings.view_reviews', content_id=content.id, page=reviews.prev_num, sort=sort_by) }}">
+                                        <i class="fas fa-chevron-left me-2"></i>Previous
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for page in reviews.iter_pages() %}
+                                {% if page %}
+                                    {% if page != reviews.page %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('ratings.view_reviews', content_id=content.id, page=page, sort=sort_by) }}">{{ page }}</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page }}</span>
+                                        </li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if reviews.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('ratings.view_reviews', content_id=content.id, page=reviews.next_num, sort=sort_by) }}">
+                                        Next<i class="fas fa-chevron-right ms-2"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            {% endif %}
+
+            <!-- No Reviews Message -->
+            {% if not reviews.items %}
+                <div class="text-center py-5">
+                    <div class="mb-4">
+                        <i class="fas fa-comments fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted mb-3">No reviews yet</h4>
+                        <p class="text-muted mb-4">Be the first to share your thoughts about this {{ content.type }}!</p>
+                        <a href="{{ url_for('ratings.rate_content', content_id=content.id) }}" 
+                           class="btn btn-primary btn-lg">
+                            <i class="fas fa-star me-2"></i>Write the First Review
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modals -->
+{% for review in reviews.items %}
+    {% if current_user.is_authenticated and review.user_id == current_user.id %}
+        <div class="modal fade" id="deleteModal{{ review.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ review.id }}" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteModalLabel{{ review.id }}">
+                            <i class="fas fa-exclamation-triangle text-warning me-2"></i>Confirm Delete
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to delete your review? This action cannot be undone.</p>
+                        <div class="border-start border-danger border-3 ps-3 mt-3">
+                            <small class="text-muted">Your rating: {{ review.rating }}/5</small>
+                            {% if review.review_text %}
+                                <p class="mt-2 mb-0 text-truncate">{{ review.review_text[:100] }}{% if review.review_text|length > 100 %}...{% endif %}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </button>
+                        <form method="POST" action="{{ url_for('ratings.delete_rating', rating_id=review.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>Delete Review
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endfor %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set progress bar widths
+    document.querySelectorAll('.progress-bar[data-percentage]').forEach(bar => {
+        const percentage = bar.getAttribute('data-percentage');
+        bar.style.width = percentage + '%';
+    });
+
+    // Handle spoiler toggle
+    document.querySelectorAll('.spoiler-toggle').forEach(button => {
+        button.addEventListener('click', function() {
+            const reviewId = this.getAttribute('data-review-id');
+            const reviewText = document.getElementById('review-text-' + reviewId);
+            
+            if (reviewText.classList.contains('d-none')) {
+                reviewText.classList.remove('d-none');
+                this.textContent = 'Hide Review';
+            } else {
+                reviewText.classList.add('d-none');
+                this.textContent = 'Show Review';
+            }
+        });
+    });
+
+    // Handle helpfulness voting
+    document.querySelectorAll('.vote-btn').forEach(button => {
+        button.addEventListener('click', async function() {
+            const reviewId = this.getAttribute('data-review-id');
+            const isHelpful = this.getAttribute('data-helpful') === 'true';
+            
+            try {
+                const response = await fetch('/review/' + reviewId + '/vote', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ is_helpful: isHelpful })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Update counters
+                    document.getElementById('helpful-count-' + reviewId).textContent = data.helpful_votes;
+                    document.getElementById('total-count-' + reviewId).textContent = data.total_votes;
+                    
+                    const percentageEl = document.getElementById('percentage-' + reviewId);
+                    if (percentageEl) {
+                        percentageEl.textContent = data.helpfulness_percentage;
+                    }
+                    
+                    // Update button states
+                    const reviewCard = document.querySelector('[data-review-id="' + reviewId + '"]');
+                    const helpfulBtn = reviewCard.querySelector('[data-helpful="true"]');
+                    const notHelpfulBtn = reviewCard.querySelector('[data-helpful="false"]');
+                    
+                    // Reset button styles
+                    helpfulBtn.className = 'btn btn-sm vote-btn btn-outline-success';
+                    notHelpfulBtn.className = 'btn btn-sm vote-btn btn-outline-danger';
+                    
+                    // Apply active style to selected button
+                    if (isHelpful) {
+                        helpfulBtn.className = 'btn btn-sm vote-btn btn-success';
+                    } else {
+                        notHelpfulBtn.className = 'btn btn-sm vote-btn btn-danger';
+                    }
+                    
+                } else {
+                    const errorData = await response.json();
+                    alert(errorData.error || 'An error occurred while voting');
+                }
+            } catch (error) {
+                console.error('Error voting on review:', error);
+                alert('An error occurred while voting');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

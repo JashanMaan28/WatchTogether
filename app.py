@@ -48,6 +48,9 @@ def create_app(config_name=None):
     from routes.watchlist import watchlist_bp as watchlist_blueprint
     app.register_blueprint(watchlist_blueprint)
     
+    from routes.ratings import ratings_bp as ratings_blueprint
+    app.register_blueprint(ratings_blueprint)
+    
     # Error handlers
     from routes.errors import errors as errors_blueprint
     app.register_blueprint(errors_blueprint)

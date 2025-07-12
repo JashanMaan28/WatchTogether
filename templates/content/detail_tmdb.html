@@ -168,6 +168,86 @@
         text-align: center;
     }
     
+    /* Rating System Styles */
+    .rating-section {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .rating-stars-display {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+    }
+    
+    .rating-stars-display .star {
+        font-size: 1.2rem;
+        color: #ddd;
+        transition: color 0.2s;
+    }
+    
+    .rating-stars-display .star.filled {
+        color: #ffc107;
+    }
+    
+    .rating-stars-display .star.small {
+        font-size: 1rem;
+    }
+    
+    .overall-rating {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+    }
+    
+    .user-rating-display {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+    }
+    
+    .no-rating {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+        text-align: center;
+    }
+    
+    .rating-quick-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .user-review {
+        background: #f8f9fa;
+        padding: 0.75rem;
+        border-radius: 6px;
+        border-left: 3px solid #007bff;
+    }
+    
+    .rating-average {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .rating-count {
+        font-size: 0.9rem;
+    }
+    
+    .rating-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 0.5rem;
+    }
+    
     @media (max-width: 768px) {
         .hero-section {
             flex-direction: column;
@@ -325,6 +405,168 @@
             {% endif %}
         </div>
     </div>
+    
+    <!-- User Rating Section -->
+    {% if current_user.is_authenticated and local_content %}
+    <div class="content-info-section rating-section">
+        <h5>Ratings & Reviews</h5>
+        
+        <!-- Overall Rating Stats -->
+        {% if local_content.get_average_rating() %}
+            <div class="overall-rating mb-4">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="rating-stars-display me-3">
+                        {% for i in range(1, 6) %}
+                            {% if i <= local_content.get_average_rating() %}
+                                <span class="star filled text-warning fs-4">★</span>
+                            {% else %}
+                                <span class="star text-muted fs-4">☆</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <div>
+                        <span class="rating-average fs-5 fw-bold">{{ "%.1f"|format(local_content.get_average_rating()) }}/5</span>
+                        <div class="rating-count text-muted small">({{ local_content.get_rating_count() }} ratings)</div>
+                    </div>
+                </div>
+                
+                <!-- Rating Distribution -->
+                {% set stats = local_content.get_rating_statistics() %}
+                {% if stats %}
+                <div class="rating-distribution mb-3">
+                    {% for rating in range(5, 0, -1) %}
+                        {% set count = stats['rating_' + rating|string + '_count'] or 0 %}
+                        {% set total = stats.total_ratings or 1 %}
+                        {% set percentage = (count / total * 100) if total > 0 else 0 %}
+                        <div class="d-flex align-items-center mb-1">
+                            <span class="rating-label me-2" style="min-width: 20px;">{{ rating }}★</span>
+                            <div class="progress flex-grow-1 me-2" style="height: 8px;">
+                                <div class="progress-bar bg-warning" role="progressbar" 
+                                     style="width: {{ percentage }}%" 
+                                     aria-valuenow="{{ percentage }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100"></div>
+                            </div>
+                            <span class="rating-percentage text-muted small" style="min-width: 35px;">{{ "%.0f"|format(percentage) }}%</span>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                {% if local_content.get_review_count() > 0 %}
+                    <a href="{{ url_for('ratings.view_reviews', content_id=local_content.id) }}" 
+                       class="btn btn-outline-secondary btn-sm">
+                        View {{ local_content.get_review_count() }} Review{{ 's' if local_content.get_review_count() != 1 else '' }}
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+        
+        <!-- User's Rating -->
+        {% set user_rating = None %}
+        {% if local_content %}
+            {% for rating in current_user.ratings %}
+                {% if rating.content_id == local_content.id %}
+                    {% set user_rating = rating %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+        {% if user_rating %}
+            <div class="user-rating-display mb-4 p-3 bg-light rounded">
+                <h6 class="mb-3"><i class="fas fa-user me-2"></i>Your Rating</h6>
+                <div class="d-flex align-items-center mb-3">
+                    <div class="rating-stars-display me-3">
+                        {% for i in range(1, 6) %}
+                            {% if i <= user_rating.rating %}
+                                <span class="star filled text-warning fs-5">★</span>
+                            {% else %}
+                                <span class="star text-muted fs-5">☆</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <div>
+                        <span class="rating-value fw-bold">{{ user_rating.rating }}/5</span>
+                        <div class="text-muted small">
+                            Rated {{ user_rating.created_at.strftime('%B %d, %Y') }}
+                        </div>
+                    </div>
+                </div>
+                {% if user_rating.review_text %}
+                    <div class="user-review mb-3">
+                        <strong class="d-block mb-2">Your Review:</strong>
+                        <div class="review-text p-2 bg-white rounded border">{{ user_rating.review_text }}</div>
+                        {% if user_rating.total_votes > 0 %}
+                            <div class="review-stats mt-2 text-muted small">
+                                <i class="fas fa-thumbs-up me-1"></i>
+                                {{ user_rating.helpful_votes }}/{{ user_rating.total_votes }} found helpful
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+                <div class="rating-actions">
+                    <a href="{{ url_for('ratings.edit_rating', rating_id=user_rating.id) }}" 
+                       class="btn btn-primary btn-sm me-2">
+                       <i class="fas fa-edit me-1"></i>Edit Rating
+                    </a>
+                    <form class="d-inline" method="POST" action="{{ url_for('ratings.delete_rating', rating_id=user_rating.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="btn btn-outline-danger btn-sm" 
+                                onclick="return confirm('Are you sure you want to delete your rating?')">
+                            <i class="fas fa-trash me-1"></i>Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+        {% else %}
+            <div class="no-rating mb-4 p-3 border border-dashed rounded text-center">
+                <div class="text-muted mb-3">
+                    <i class="fas fa-star fs-4 mb-2"></i>
+                    <p class="mb-0">You haven't rated this {{ content.content_type }} yet.</p>
+                </div>
+                {% if local_content %}
+                    <a href="{{ url_for('ratings.rate_content', content_id=local_content.id) }}" 
+                       class="btn btn-primary">
+                       <i class="fas fa-star me-1"></i>Rate & Review
+                    </a>
+                {% else %}
+                    <span class="text-muted">Add to watchlist first to rate this content</span>
+                {% endif %}
+            </div>
+        {% endif %}
+        
+        <!-- Quick Actions -->
+        {% if local_content %}
+        <div class="rating-quick-actions mb-4">
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ url_for('ratings.view_reviews', content_id=local_content.id) }}" 
+                   class="btn btn-outline-secondary btn-sm">
+                   <i class="fas fa-comments me-1"></i>All Reviews
+                </a>
+                {% if not user_rating %}
+                    <a href="{{ url_for('ratings.rate_content', content_id=local_content.id) }}" 
+                       class="btn btn-primary btn-sm">
+                       <i class="fas fa-star me-1"></i>Add Rating
+                    </a>
+                {% endif %}
+                <a href="{{ url_for('watchlist.add_to_watchlist', content_id=local_content.id) }}" 
+                   class="btn btn-outline-primary btn-sm">
+                   <i class="fas fa-plus me-1"></i>Add to Watchlist
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% elif current_user.is_authenticated %}
+    <div class="content-info-section rating-section">
+        <h5>Rate This Content</h5>
+        <p class="text-muted">This content needs to be added to our database before you can rate it.</p>
+        <form method="POST" action="{{ url_for('content.add_from_tmdb') }}" class="d-inline">
+            <input type="hidden" name="tmdb_id" value="{{ content.tmdb_id }}">
+            <input type="hidden" name="content_type" value="{{ content.content_type }}">
+            <button type="submit" class="btn btn-outline-primary btn-sm">Add to Database & Rate</button>
+        </form>
+    </div>
+    {% endif %}
     
     <!-- User Reviews -->
     {% if reviews %}

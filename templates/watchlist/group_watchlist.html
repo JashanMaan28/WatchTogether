@@ -240,16 +240,6 @@
                                     </div>
                                     {% endif %}
                                 </div>
-                                
-                                <!-- Watch Session Button -->
-                                {% if group.can_user_manage_members(current_user.id) %}
-                                <div class="mt-2">
-                                    <a href="{{ url_for('watchlist.create_watch_session', group_id=group.id, content_id=item.content.id) }}" 
-                                       class="btn btn-success btn-sm w-100">
-                                        <i class="fas fa-play"></i> Schedule Watch Session
-                                    </a>
-                                </div>
-                                {% endif %}
                             </div>
                         </div>
                     </div>

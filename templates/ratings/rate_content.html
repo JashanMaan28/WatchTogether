@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Rate {{ content.title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- Content Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="flex flex-col md:flex-row gap-6">
+                <div class="flex-shrink-0">
+                    {% if content.poster_url %}
+                        <img src="{{ content.poster_url }}" alt="{{ content.title }}" 
+                             class="w-48 h-72 object-cover rounded-lg shadow-md">
+                    {% else %}
+                        <div class="w-48 h-72 bg-gray-300 rounded-lg flex items-center justify-center">
+                            <span class="text-gray-500">No Image</span>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="flex-1">
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ content.title }}</h1>
+                    {% if content.year %}
+                        <p class="text-gray-600 mb-2">{{ content.year }}</p>
+                    {% endif %}
+                    
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        {% for genre in content.get_genres() %}
+                            <span class="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">{{ genre }}</span>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if content.description %}
+                        <p class="text-gray-700 mb-4">{{ content.description[:300] }}{% if content.description|length > 300 %}...{% endif %}</p>
+                    {% endif %}
+                    
+                    <!-- Current Rating Stats -->
+                    {% if content.get_average_rating() %}
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="flex items-center">
+                                <div class="star-rating text-yellow-400 text-xl mr-2">
+                                    {% for i in range(1, 6) %}
+                                        {% if i <= content.get_average_rating() %}
+                                            ★
+                                        {% else %}
+                                            ☆
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <span class="text-lg font-semibold">{{ "%.1f"|format(content.get_average_rating()) }}</span>
+                                <span class="text-gray-600 ml-2">({{ content.get_rating_count() }} ratings)</span>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Rating Form -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">
+                {% if existing_rating %}Edit Your Rating{% else %}Rate and Review{% endif %}
+            </h2>
+            
+            <form method="POST" class="space-y-6">
+                <!-- Star Rating -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Rating *</label>
+                    <div class="star-rating-input flex items-center gap-1">
+                        {% for i in range(1, 6) %}
+                            <input type="radio" name="rating" value="{{ i }}" id="star{{ i }}" 
+                                   class="hidden peer/star{{ i }}"
+                                   {% if existing_rating and existing_rating.rating == i %}checked{% endif %}>
+                            <label for="star{{ i }}" 
+                                   class="text-3xl text-gray-300 cursor-pointer transition-colors hover:text-yellow-400 peer-checked/star{{ i }}:text-yellow-400">
+                                ★
+                            </label>
+                        {% endfor %}
+                    </div>
+                    <p class="text-sm text-gray-600 mt-1">Click the stars to rate (1-5 stars)</p>
+                </div>
+
+                <!-- Review Text -->
+                <div>
+                    <label for="review_text" class="block text-sm font-medium text-gray-700 mb-2">
+                        Write a Review (Optional)
+                    </label>
+                    <textarea name="review_text" id="review_text" rows="4" 
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Share your thoughts about this {{ content.type }}...">{% if existing_rating and existing_rating.review_text %}{{ existing_rating.review_text }}{% endif %}</textarea>
+                </div>
+
+                <!-- Spoiler Warning -->
+                <div class="flex items-center">
+                    <input type="checkbox" name="is_spoiler" id="is_spoiler" 
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                           {% if existing_rating and existing_rating.is_spoiler %}checked{% endif %}>
+                    <label for="is_spoiler" class="ml-2 block text-sm text-gray-700">
+                        This review contains spoilers
+                    </label>
+                </div>
+
+                <!-- Privacy Setting -->
+                <div class="flex items-center">
+                    <input type="checkbox" name="is_public" id="is_public" 
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                           {% if not existing_rating or existing_rating.is_public %}checked{% endif %}>
+                    <label for="is_public" class="ml-2 block text-sm text-gray-700">
+                        Make this rating public
+                    </label>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="flex gap-4">
+                    <button type="submit" 
+                            class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
+                        {% if existing_rating %}Update Rating{% else %}Submit Rating{% endif %}
+                    </button>
+                    
+                    <a href="{{ url_for('content.detail', tmdb_id=content.tmdb_id, content_type=content.type) }}" 
+                       class="px-6 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+                        Cancel
+                    </a>
+                    
+                    {% if existing_rating %}
+                        <button type="button" onclick="deleteRating()" 
+                                class="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors">
+                            Delete Rating
+                        </button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <!-- Delete Confirmation Form -->
+        {% if existing_rating %}
+            <form id="deleteForm" method="POST" action="{{ url_for('ratings.delete_rating', rating_id=existing_rating.id) }}" class="hidden">
+            </form>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Star rating interactivity
+document.querySelectorAll('.star-rating-input label').forEach((star, index) => {
+    star.addEventListener('mouseenter', () => {
+        // Highlight stars up to this one
+        document.querySelectorAll('.star-rating-input label').forEach((s, i) => {
+            if (i <= index) {
+                s.style.color = '#FBB03B';
+            } else {
+                s.style.color = '#D1D5DB';
+            }
+        });
+    });
+    
+    star.addEventListener('mouseleave', () => {
+        // Reset to current selection
+        const checkedInput = document.querySelector('.star-rating-input input:checked');
+        if (checkedInput) {
+            const checkedIndex = Array.from(document.querySelectorAll('.star-rating-input input')).indexOf(checkedInput);
+            document.querySelectorAll('.star-rating-input label').forEach((s, i) => {
+                if (i <= checkedIndex) {
+                    s.style.color = '#FBB03B';
+                } else {
+                    s.style.color = '#D1D5DB';
+                }
+            });
+        } else {
+            document.querySelectorAll('.star-rating-input label').forEach(s => {
+                s.style.color = '#D1D5DB';
+            });
+        }
+    });
+    
+    star.addEventListener('click', () => {
+        // Update visual state
+        document.querySelectorAll('.star-rating-input label').forEach((s, i) => {
+            if (i <= index) {
+                s.style.color = '#FBB03B';
+            } else {
+                s.style.color = '#D1D5DB';
+            }
+        });
+    });
+});
+
+// Initialize star display
+document.addEventListener('DOMContentLoaded', () => {
+    const checkedInput = document.querySelector('.star-rating-input input:checked');
+    if (checkedInput) {
+        const checkedIndex = Array.from(document.querySelectorAll('.star-rating-input input')).indexOf(checkedInput);
+        document.querySelectorAll('.star-rating-input label').forEach((s, i) => {
+            if (i <= checkedIndex) {
+                s.style.color = '#FBB03B';
+            } else {
+                s.style.color = '#D1D5DB';
+            }
+        });
+    }
+});
+
+{% if existing_rating %}
+function deleteRating() {
+    if (confirm('Are you sure you want to delete your rating? This action cannot be undone.')) {
+        document.getElementById('deleteForm').submit();
+    }
+}
+{% endif %}
+</script>
+{% endblock %}

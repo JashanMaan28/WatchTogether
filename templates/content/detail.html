@@ -195,6 +195,47 @@
         margin-top: 2rem;
     }
     
+    .rating-stars-display .star {
+        color: #ddd;
+        font-size: 1.2em;
+        margin-right: 2px;
+    }
+    
+    .rating-stars-display .star.filled {
+        color: #ffc107;
+    }
+    
+    .rating-stars-display .star.small {
+        font-size: 1em;
+    }
+    
+    .overall-rating {
+        border-bottom: 1px solid #eee;
+        padding-bottom: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .user-rating-display {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .review-preview {
+        border-left: 3px solid #007bff;
+        padding-left: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .spoiler-warning {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 4px;
+        padding: 5px 10px;
+        display: inline-block;
+    }
+
     .user-rating {
         background: #f39c12;
         color: white;
@@ -494,45 +535,135 @@
     <!-- User Rating Section -->
     {% if current_user.is_authenticated %}
     <div class="content-info-section rating-section">
-        <h5>Your Rating</h5>
+        <h5>Ratings & Reviews</h5>
         
-        {% if user_rating %}
-        <div class="user-rating">
-            <i class="fas fa-star"></i> {{ user_rating }}/10
-        </div>
+        <!-- Overall Rating Stats -->
+        {% if content.get_average_rating() %}
+            <div class="overall-rating mb-4">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="rating-stars-display me-2">
+                        {% for i in range(1, 6) %}
+                            {% if i <= content.get_average_rating() %}
+                                <span class="star filled">★</span>
+                            {% else %}
+                                <span class="star">☆</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <span class="rating-average">{{ "%.1f"|format(content.get_average_rating()) }}/5</span>
+                    <span class="rating-count ms-2 text-muted">({{ content.get_rating_count() }} ratings)</span>
+                </div>
+                {% if content.get_review_count() > 0 %}
+                    <a href="{{ url_for('ratings.view_reviews', content_id=content.id) }}" 
+                       class="btn btn-outline-secondary btn-sm">
+                        View {{ content.get_review_count() }} Review{{ 's' if content.get_review_count() != 1 else '' }}
+                    </a>
+                {% endif %}
+            </div>
         {% endif %}
         
-        <div class="rating-form">
-            <h6>Rate this content</h6>
-            <div class="rating-stars" data-content-id="{{ content.id }}">
-                {% for i in range(1, 11) %}
-                <span class="star" data-rating="{{ i }}">★</span>
-                {% endfor %}
+        <!-- User's Rating -->
+        {% set user_rating = current_user.ratings.filter_by(content_id=content.id).first() %}
+        {% if user_rating %}
+            <div class="user-rating-display mb-3">
+                <h6>Your Rating</h6>
+                <div class="d-flex align-items-center mb-2">
+                    <div class="rating-stars-display me-2">
+                        {% for i in range(1, 6) %}
+                            {% if i <= user_rating.rating %}
+                                <span class="star filled">★</span>
+                            {% else %}
+                                <span class="star">☆</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <span class="rating-value">{{ user_rating.rating }}/5</span>
+                    <span class="ms-2 text-muted">
+                        Rated {{ user_rating.created_at.strftime('%B %d, %Y') }}
+                    </span>
+                </div>
+                {% if user_rating.review_text %}
+                    <div class="user-review mb-2">
+                        <small class="text-muted">Your review:</small>
+                        <p class="mb-0">{{ user_rating.review_text }}</p>
+                    </div>
+                {% endif %}
+                <div class="rating-actions">
+                    <a href="{{ url_for('ratings.edit_rating', rating_id=user_rating.id) }}" 
+                       class="btn btn-outline-primary btn-sm">Edit Rating</a>
+                    {% if user_rating.review_text %}
+                        <span class="ms-2">
+                            {% if user_rating.total_votes > 0 %}
+                                {{ user_rating.helpful_votes }}/{{ user_rating.total_votes }} found helpful
+                            {% endif %}
+                        </span>
+                    {% endif %}
+                </div>
             </div>
-            <textarea id="review-text" 
-                     placeholder="Write a review (optional)..." 
-                     class="form-control mb-2"
-                     rows="3"></textarea>
-            <button id="submit-rating" class="btn btn-primary">Submit Rating</button>
+        {% else %}
+            <div class="no-rating mb-3">
+                <p class="text-muted">You haven't rated this {{ content.type }} yet.</p>
+                <a href="{{ url_for('ratings.rate_content', content_id=content.id) }}" 
+                   class="btn btn-primary">Rate & Review</a>
+            </div>
+        {% endif %}
+        
+        <!-- Quick Actions -->
+        <div class="rating-quick-actions">
+            <a href="{{ url_for('ratings.view_reviews', content_id=content.id) }}" 
+               class="btn btn-outline-secondary btn-sm me-2">All Reviews</a>
+            {% if not user_rating %}
+                <a href="{{ url_for('ratings.rate_content', content_id=content.id) }}" 
+                   class="btn btn-primary btn-sm">Add Rating</a>
+            {% endif %}
         </div>
     </div>
     {% endif %}
     
-    <!-- User Reviews -->
-    {% if reviews %}
-    <div class="content-info-section reviews-section">
-        <h5>User Reviews</h5>
+    <!-- Recent Reviews Preview -->
+    {% set recent_reviews = content.ratings.filter_by(is_public=True).filter(content.ratings.c.review_text != None).order_by(content.ratings.c.created_at.desc()).limit(3).all() %}
+    {% if recent_reviews %}
+    <div class="content-info-section reviews-preview">
+        <h5>Recent Reviews</h5>
         
-        {% for review in reviews %}
-        <div class="review-card">
-            <div class="review-header">
-                <strong>{{ review.user.username }}</strong>
-                <span class="review-rating">{{ review.rating }}/10</span>
+        {% for review in recent_reviews %}
+        <div class="review-preview mb-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <strong>{{ review.user.get_full_name() }}</strong>
+                    <small class="text-muted ms-2">@{{ review.user.username }}</small>
+                </div>
+                <div class="rating-stars-display">
+                    {% for i in range(1, 6) %}
+                        {% if i <= review.rating %}
+                            <span class="star filled small">★</span>
+                        {% else %}
+                            <span class="star small">☆</span>
+                        {% endif %}
+                    {% endfor %}
+                    <span class="ms-1 small">{{ review.rating }}/5</span>
+                </div>
             </div>
-            <p>{{ review.review }}</p>
+            
+            {% if review.is_spoiler %}
+                <div class="spoiler-warning mb-2">
+                    <small class="text-warning">⚠️ Contains Spoilers</small>
+                </div>
+            {% endif %}
+            
+            <p class="mb-2">{{ review.review_text[:150] }}{% if review.review_text|length > 150 %}...{% endif %}</p>
             <small class="text-muted">{{ review.created_at.strftime('%B %d, %Y') }}</small>
+            
+            {% if review.helpful_votes > 0 or review.total_votes > 0 %}
+                <small class="text-muted ms-3">
+                    {{ review.helpful_votes }}/{{ review.total_votes }} found helpful
+                </small>
+            {% endif %}
         </div>
         {% endfor %}
+        
+        <a href="{{ url_for('ratings.view_reviews', content_id=content.id) }}" 
+           class="btn btn-outline-primary btn-sm">View All Reviews</a>
     </div>
     {% endif %}
     
@@ -543,7 +674,7 @@
         
         <div class="recommendations-grid">
             {% for rec in recommendations %}
-            <a href="{{ url_for('content.detail', content_id=rec.id) }}" class="recommendation-card">
+            <a href="{{ url_for('content.detail', tmdb_id=rec.tmdb_id, content_type=rec.type) }}" class="recommendation-card">
                 {% if rec.poster_url %}
                 <img src="{{ rec.poster_url }}" alt="{{ rec.title }}" class="recommendation-poster">
                 {% else %}

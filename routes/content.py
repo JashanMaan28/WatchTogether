@@ -86,8 +86,7 @@ def index():
                              per_page=20)
                              
     except Exception as e:
-        print(f"Error in content index: {e}")
-        # Fallback to empty results
+        current_app.logger.error(f"Error in content index: {e}")
         return render_template('content/browse.html',
                              content_items=[],
                              current_filters={'search': '', 'type': 'movie'},
@@ -95,61 +94,7 @@ def index():
                              total_pages=1,
                              total_results=0,
                              per_page=20)
-        try:
-            min_rating = float(rating_filter)
-            query = query.filter(Content.rating >= min_rating)
-        except ValueError:
-            pass
-    
-    if content_type:
-        query = query.filter(Content.type == content_type)
-    
-    if platform_filter:
-        try:
-            platform_id = int(platform_filter)
-            query = query.join(ContentPlatform).filter(
-                ContentPlatform.platform_id == platform_id,
-                ContentPlatform.is_available == True
-            )
-        except ValueError:
-            pass
-    
-    # Apply sorting
-    if sort_by == 'title':
-        query = query.order_by(asc(Content.title))
-    elif sort_by == 'year':
-        query = query.order_by(desc(Content.year))
-    elif sort_by == 'rating':
-        query = query.order_by(desc(Content.rating))
-    elif sort_by == 'created':
-        query = query.order_by(desc(Content.created_at))
-    
-    # Paginate results
-    contents = query.paginate(
-        page=page, per_page=per_page, error_out=False
-    )
-    
-    # Get filter options
-    platforms = Platform.query.filter_by(is_active=True).all()
-    genres = get_unique_genres()
-    years = get_unique_years()
-    content_types = get_unique_content_types()
-    
-    return render_template('content/index.html',
-                         contents=contents,
-                         platforms=platforms,
-                         genres=genres,
-                         years=years,
-                         content_types=content_types,
-                         current_filters={
-                             'search': search_query,
-                             'genre': genre_filter,
-                             'year': year_filter,
-                             'rating': rating_filter,
-                             'platform': platform_filter,
-                             'type': content_type,
-                             'sort': sort_by
-                         })
+
 
 @content.route('/<int:tmdb_id>')
 @content.route('/<int:tmdb_id>/<content_type>')
@@ -157,7 +102,12 @@ def detail(tmdb_id, content_type='movie'):
     """Content detail page using TMDB API"""
     try:
         # Initialize TMDB service
-        tmdb = TMDBService()
+        try:
+            tmdb = TMDBService()
+        except Exception as tmdb_error:
+            current_app.logger.error(f"TMDB Service initialization error: {tmdb_error}")
+            flash('Movie database service is currently unavailable', 'error')
+            return redirect(url_for('content.index'))
         
         # Get content details from TMDB
         content_details = tmdb.get_content_details(tmdb_id, content_type)
@@ -221,14 +171,14 @@ def detail(tmdb_id, content_type='movie'):
         # Get reviews from our local database if content exists
         reviews = []
         local_content = None
-        if current_user.is_authenticated:
-            from models import Content as LocalContent
-            local_content = LocalContent.query.filter_by(tmdb_id=tmdb_id).first()
-            if local_content:
-                reviews = ContentRating.query.filter_by(content_id=local_content.id)\
-                                            .filter(ContentRating.review.isnot(None))\
-                                            .order_by(desc(ContentRating.created_at))\
-                                            .limit(10).all()
+        from models import Content as LocalContent
+        local_content = LocalContent.query.filter_by(tmdb_id=tmdb_id).first()
+        if local_content:
+            reviews = ContentRating.query.filter_by(content_id=local_content.id)\
+                                        .filter(ContentRating.review_text.isnot(None))\
+                                        .filter(ContentRating.is_public == True)\
+                                        .order_by(desc(ContentRating.created_at))\
+                                        .limit(5).all()
         
         return render_template('content/detail_tmdb.html',
                              content=content_details,
@@ -239,7 +189,9 @@ def detail(tmdb_id, content_type='movie'):
                              local_content=local_content)
                              
     except Exception as e:
-        print(f"Error in content detail: {e}")
+        import traceback
+        current_app.logger.error(f"Error in content detail: {e}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         flash('Error loading content details', 'error')
         return redirect(url_for('content.index'))
 
@@ -288,7 +240,7 @@ def search():
         
         return jsonify(search_results)
     except Exception as e:
-        print(f"Search error: {e}")
+        current_app.logger.error(f"Search error: {e}")
         return jsonify([])
 
 @content.route('/watchlist', methods=['POST'])
@@ -369,7 +321,7 @@ def toggle_watchlist():
         
     except Exception as e:
         db.session.rollback()
-        print(f"Watchlist error: {e}")
+        current_app.logger.error(f"Watchlist error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @content.route('/rate', methods=['POST'])
@@ -417,6 +369,104 @@ def rate_content():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@content.route('/debug/<int:tmdb_id>')
+@content.route('/debug/<int:tmdb_id>/<content_type>')
+def debug_detail(tmdb_id, content_type='movie'):
+    """Debug route to test TMDB API"""
+    try:
+        # Initialize TMDB service
+        tmdb = TMDBService()
+        
+        # Test basic API connection
+        api_test = f"API Key exists: {bool(tmdb.api_key)}"
+        
+        # Get content details from TMDB
+        content_details = tmdb.get_content_details(tmdb_id, content_type)
+        
+        debug_info = {
+            'api_test': api_test,
+            'tmdb_id': tmdb_id,
+            'content_type': content_type,
+            'content_details': content_details,
+            'api_key_prefix': tmdb.api_key[:10] + '...' if tmdb.api_key else 'None'
+        }
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })
+
+@content.route('/add_from_tmdb', methods=['POST'])
+@login_required
+def add_from_tmdb():
+    """Add content from TMDB to local database for rating"""
+    try:
+        tmdb_id = request.form.get('tmdb_id', type=int)
+        content_type = request.form.get('content_type', 'movie')
+        
+        if not tmdb_id:
+            flash('Invalid content ID', 'error')
+            return redirect(request.referrer or url_for('content.index'))
+        
+        # Check if content already exists
+        from models import Content as LocalContent
+        existing_content = LocalContent.query.filter_by(tmdb_id=tmdb_id).first()
+        if existing_content:
+            flash('Content already exists in database', 'info')
+            return redirect(url_for('ratings.rate_content', content_id=existing_content.id))
+        
+        # Get content details from TMDB
+        tmdb = TMDBService()
+        content_details = tmdb.get_content_details(tmdb_id, content_type)
+        
+        if not content_details:
+            flash('Content not found on TMDB', 'error')
+            return redirect(request.referrer or url_for('content.index'))
+        
+        # Create new content in our database
+        new_content = LocalContent(
+            title=content_details.get('title') or content_details.get('name', ''),
+            description=content_details.get('overview', ''),
+            type=content_type,
+            genre=', '.join(content_details.get('genres', [])),
+            year=None,
+            rating=content_details.get('vote_average'),
+            duration=content_details.get('runtime') or content_details.get('episode_run_time', [0])[0] if content_details.get('episode_run_time') else None,
+            poster_url=f"https://image.tmdb.org/t/p/w500{content_details['poster_path']}" if content_details.get('poster_path') else None,
+            backdrop_url=f"https://image.tmdb.org/t/p/w1280{content_details['backdrop_path']}" if content_details.get('backdrop_path') else None,
+            tmdb_id=tmdb_id,
+            imdb_id=content_details.get('imdb_id'),
+            director=', '.join([crew['name'] for crew in content_details.get('credits', {}).get('crew', []) if crew['job'] == 'Director'][:3]) if content_details.get('credits') else None,
+            cast=', '.join([cast['name'] for cast in content_details.get('credits', {}).get('cast', [])[:5]]) if content_details.get('credits') else None,
+            country=', '.join([country['name'] for country in content_details.get('production_countries', [])]),
+            language=content_details.get('original_language', '').upper(),
+            status='active'
+        )
+        
+        # Set year from release date
+        release_date = content_details.get('release_date') or content_details.get('first_air_date')
+        if release_date:
+            try:
+                new_content.year = int(release_date.split('-')[0])
+            except:
+                pass
+        
+        db.session.add(new_content)
+        db.session.commit()
+        
+        flash(f'"{new_content.title}" added to database successfully!', 'success')
+        return redirect(url_for('ratings.rate_content', content_id=new_content.id))
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error adding content from TMDB: {e}")
+        flash('Error adding content to database', 'error')
+        return redirect(request.referrer or url_for('content.index'))
 
 # Helper functions
 def get_unique_genres():

@@ -51,9 +51,6 @@
                             <li><a class="dropdown-item" href="{{ url_for('watchlist.my_shares') }}">
                                 <i class="bi bi-share"></i> Shared Lists
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('watchlist.watch_sessions') }}">
-                                <i class="bi bi-play-circle"></i> Watch Sessions
-                            </a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -170,6 +167,7 @@
     
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ratings.js') }}"></script>
     
     {% if current_user.is_authenticated %}
     <!-- Notification checking for authenticated users -->

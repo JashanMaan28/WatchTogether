@@ -442,7 +442,23 @@ class User(UserMixin, db.Model):
                 return 'blocked_by'
         
         return None
-
+    
+    def get_rating_statistics(self):
+        """Get rating statistics as a dictionary"""
+        stats = self.rating_statistics
+        if not stats:
+            return None
+        
+        return {
+            'average_rating': stats.average_rating,
+            'total_ratings': stats.total_ratings,
+            'total_reviews': stats.total_reviews,
+            'rating_1_count': stats.rating_1_count,
+            'rating_2_count': stats.rating_2_count,
+            'rating_3_count': stats.rating_3_count,
+            'rating_4_count': stats.rating_4_count,
+            'rating_5_count': stats.rating_5_count,
+        }
 
 
 class Friendship(db.Model):
@@ -836,11 +852,32 @@ class Content(db.Model):
         return [cp.platform_ref for cp in self.content_platforms if cp.platform_ref.is_active]
     
     def get_average_rating(self):
-        """Get average user rating"""
-        ratings = self.content_ratings.all()
-        if ratings:
-            return sum(r.rating for r in ratings) / len(ratings)
-        return None
+        """Get average user rating from statistics"""
+        stats = self.rating_statistics
+        return stats.average_rating if stats else None
+    
+    def get_rating_count(self):
+        """Get total number of ratings"""
+        stats = self.rating_statistics
+        return stats.total_ratings if stats else 0
+    
+    def get_review_count(self):
+        """Get total number of reviews"""
+        stats = self.rating_statistics
+        return stats.total_reviews if stats else 0
+    
+    def get_rating_distribution(self):
+        """Get rating distribution"""
+        stats = self.rating_statistics
+        return stats.get_rating_distribution() if stats else {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+    
+    def update_rating_statistics(self):
+        """Update or create rating statistics for this content"""
+        from models import RatingStatistics
+        stats = RatingStatistics.get_or_create_for_content(self.id)
+        stats.update_statistics()
+        db.session.commit()
+        return stats
     
     def to_dict(self):
         return {
@@ -860,7 +897,12 @@ class Content(db.Model):
             'country': self.country,
             'language': self.language,
             'platforms': [p.name for p in self.get_platforms()],
-            'average_user_rating': self.get_average_rating()
+            'user_rating': {
+                'average': self.get_average_rating(),
+                'total_ratings': self.get_rating_count(),
+                'total_reviews': self.get_review_count(),
+                'distribution': self.get_rating_distribution()
+            }
         }
 
 
@@ -985,21 +1027,68 @@ class UserWatchlist(db.Model):
 
 
 class ContentRating(db.Model):
-    """User ratings for content"""
+    """Enhanced user ratings and reviews for content"""
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     content_id = db.Column(db.Integer, db.ForeignKey('content.id'), nullable=False)
-    rating = db.Column(db.Float, nullable=False)  # 1-10 rating
-    review = db.Column(db.Text, nullable=True)
+    rating = db.Column(db.Integer, nullable=False)  # 1-5 stars
+    review_text = db.Column(db.Text, nullable=True)
+    is_spoiler = db.Column(db.Boolean, default=False)
+    is_public = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Review metrics
+    helpful_votes = db.Column(db.Integer, default=0)
+    total_votes = db.Column(db.Integer, default=0)
     
     # Unique constraint
     __table_args__ = (db.UniqueConstraint('user_id', 'content_id', name='unique_user_content_rating'),)
     
+    # Relationships
+    user = db.relationship('User', backref='ratings')
+    content = db.relationship('Content', backref=db.backref('ratings', overlaps="content_ratings,content_ref"))
+    review_votes = db.relationship('ReviewHelpfulnessVote', backref='rating_ref', cascade='all, delete-orphan')
+    
     def __repr__(self):
-        return f'<ContentRating {self.user_id}-{self.content_id}: {self.rating}>'
+        return f'<ContentRating {self.user.username}-{self.content.title}: {self.rating}/5>'
+    
+    def get_helpfulness_percentage(self):
+        """Calculate helpfulness percentage"""
+        if self.total_votes == 0:
+            return 0
+        return round((self.helpful_votes / self.total_votes) * 100, 1)
+    
+    def can_edit(self, current_user):
+        """Check if current user can edit this rating"""
+        return current_user.id == self.user_id
+    
+    def to_dict(self, include_user=True):
+        """Convert rating to dictionary"""
+        data = {
+            'id': self.id,
+            'content_id': self.content_id,
+            'rating': self.rating,
+            'review_text': self.review_text,
+            'is_spoiler': self.is_spoiler,
+            'is_public': self.is_public,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'helpful_votes': self.helpful_votes,
+            'total_votes': self.total_votes,
+            'helpfulness_percentage': self.get_helpfulness_percentage()
+        }
+        
+        if include_user:
+            data['user'] = {
+                'id': self.user.id,
+                'username': self.user.username,
+                'profile_picture': self.user.profile_picture,
+                'full_name': self.user.get_full_name()
+            }
+        
+        return data
 
 class GroupWatchlist(db.Model):
     """Shared watchlist for groups"""
@@ -1098,9 +1187,6 @@ class GroupWatchlistVote(db.Model):
     vote_type = db.Column(db.String(10), nullable=False)  # 'up' or 'down'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    user = db.relationship('User', backref='group_watchlist_votes')
     
     # Unique constraint - one vote per user per item
     __table_args__ = (db.UniqueConstraint('group_watchlist_id', 'user_id', name='unique_user_vote'),)
@@ -1202,3 +1288,150 @@ class WatchSessionParticipant(db.Model):
     
     def __repr__(self):
         return f'<WatchSessionParticipant {self.user.username} in {self.session_id}>'
+
+class GroupRating(db.Model):
+    """Group consensus ratings for content"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
+    content_id = db.Column(db.Integer, db.ForeignKey('content.id'), nullable=False)
+    average_rating = db.Column(db.Float, nullable=True)
+    total_ratings = db.Column(db.Integer, default=0)
+    consensus_review = db.Column(db.Text, nullable=True)  # Optional group consensus review
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Unique constraint
+    __table_args__ = (db.UniqueConstraint('group_id', 'content_id', name='unique_group_content_rating'),)
+    
+    # Relationships
+    group = db.relationship('Group', backref='group_ratings')
+    content = db.relationship('Content', backref='group_ratings')
+    
+    def __repr__(self):
+        return f'<GroupRating {self.group.name}-{self.content.title}: {self.average_rating}/5>'
+    
+    def calculate_group_rating(self):
+        """Calculate average rating from group members' individual ratings"""
+        from sqlalchemy import and_
+        
+        # Get all group members
+        member_ids = [member.user_id for member in self.group.members if member.status == 'active']
+        
+        # Get ratings from group members for this content
+        member_ratings = ContentRating.query.filter(
+            and_(
+                ContentRating.content_id == self.content_id,
+                ContentRating.user_id.in_(member_ids),
+                ContentRating.is_public == True
+            )
+        ).all()
+        
+        if member_ratings:
+            total_rating = sum(rating.rating for rating in member_ratings)
+            self.average_rating = round(total_rating / len(member_ratings), 2)
+            self.total_ratings = len(member_ratings)
+        else:
+            self.average_rating = None
+            self.total_ratings = 0
+        
+        self.updated_at = datetime.utcnow()
+        return self.average_rating
+    
+    def get_rating_distribution(self):
+        """Get rating distribution for group members"""
+        from sqlalchemy import and_
+        
+        member_ids = [member.user_id for member in self.group.members if member.status == 'active']
+        member_ratings = ContentRating.query.filter(
+            and_(
+                ContentRating.content_id == self.content_id,
+                ContentRating.user_id.in_(member_ids),
+                ContentRating.is_public == True
+            )
+        ).all()
+        
+        distribution = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        for rating in member_ratings:
+            distribution[rating.rating] += 1
+        
+        return distribution
+    
+    def to_dict(self):
+        """Convert group rating to dictionary"""
+        return {
+            'id': self.id,
+            'group_id': self.group_id,
+            'content_id': self.content_id,
+            'average_rating': self.average_rating,
+            'total_ratings': self.total_ratings,
+            'consensus_review': self.consensus_review,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'rating_distribution': self.get_rating_distribution(),
+            'group': {
+                'id': self.group.id,
+                'name': self.group.name
+            },
+            'content': {
+                'id': self.content.id,
+                'title': self.content.title,
+                'poster_url': self.content.poster_url
+            }
+        }
+
+
+class ReviewHelpfulnessVote(db.Model):
+    """Track helpfulness votes on reviews"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    rating_id = db.Column(db.Integer, db.ForeignKey('content_rating.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    is_helpful = db.Column(db.Boolean, nullable=False)  # True for helpful, False for not helpful
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Unique constraint - one vote per user per review
+    __table_args__ = (db.UniqueConstraint('rating_id', 'user_id', name='unique_review_vote'),)
+    
+    def __repr__(self):
+        return f'<ReviewHelpfulnessVote {self.user.username}-{self.rating_id}: {"helpful" if self.is_helpful else "not helpful"}>'
+    
+    def to_dict(self):
+        """Convert vote to dictionary"""
+        return {
+            'id': self.id,
+            'rating_id': self.rating_id,
+            'user_id': self.user_id,
+            'is_helpful': self.is_helpful,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class RatingStatistics(db.Model):
+    """Aggregated rating statistics for content"""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    content_id = db.Column(db.Integer, db.ForeignKey('content.id'), nullable=False, unique=True)
+    
+    # Rating statistics
+    average_rating = db.Column(db.Float, nullable=True)
+    total_ratings = db.Column(db.Integer, default=0)
+    total_reviews = db.Column(db.Integer, default=0)
+    
+    # Rating distribution
+    rating_1_count = db.Column(db.Integer, default=0)
+    rating_2_count = db.Column(db.Integer, default=0)
+    rating_3_count = db.Column(db.Integer, default=0)
+    rating_4_count = db.Column(db.Integer, default=0)
+    rating_5_count = db.Column(db.Integer, default=0)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    content = db.relationship('Content', backref=db.backref('rating_statistics', uselist=False))
+    
+    def __repr__(self):
+        return f'<RatingStatistics {self.content.title}: {self.average_rating}/5 ({self.total_ratings} ratings)>'

@@ -107,7 +107,7 @@ def add_to_watchlist(content_id):
     
     if existing:
         flash('This content is already in your watchlist.', 'info')
-        return redirect(request.referrer or url_for('content.detail', id=content_id))
+        return redirect(request.referrer or url_for('content.detail', tmdb_id=content.tmdb_id, content_type=content.type))
     
     form = AddToWatchlistForm()
     
@@ -506,24 +506,6 @@ def view_friend_watchlist(user_id):
 
 
 # Watch Sessions Routes (Commented out until WatchSession models are properly imported)
-
-@watchlist_bp.route('/sessions')
-@login_required
-def watch_sessions():
-    """View upcoming watch sessions"""
-    # TODO: Implement once WatchSession models are available
-    flash('Watch sessions feature coming soon!', 'info')
-    return redirect(url_for('watchlist.my_watchlist'))
-
-
-@watchlist_bp.route('/session/create/<int:group_id>/<int:content_id>', methods=['GET', 'POST'])
-@login_required
-def create_watch_session(group_id, content_id):
-    """Create a new watch session"""
-    # TODO: Implement once WatchSession models are available
-    flash('Watch sessions feature coming soon!', 'info')
-    return redirect(url_for('watchlist.group_watchlist', group_id=group_id))
-
 
 # Utility Functions
 

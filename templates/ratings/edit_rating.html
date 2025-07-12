@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Rating{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- Content Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="flex items-center gap-6">
+                <div class="flex-shrink-0">
+                    {% if rating.content.poster_url %}
+                        <img src="{{ rating.content.poster_url }}" alt="{{ rating.content.title }}" 
+                             class="w-24 h-36 object-cover rounded-lg shadow-md">
+                    {% else %}
+                        <div class="w-24 h-36 bg-gray-300 rounded-lg flex items-center justify-center">
+                            <span class="text-gray-500 text-xs">No Image</span>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="flex-1">
+                    <h1 class="text-2xl font-bold text-gray-900 mb-2">Edit Your Rating</h1>
+                    <h2 class="text-xl text-gray-700 mb-2">{{ rating.content.title }}</h2>
+                    {% if rating.content.year %}
+                        <p class="text-gray-600">{{ rating.content.year }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Rating Form -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <form method="POST" class="space-y-6">
+                <!-- Star Rating -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Rating *</label>
+                    <div class="star-rating-input flex items-center gap-1">
+                        {% for i in range(1, 6) %}
+                            <input type="radio" name="rating" value="{{ i }}" id="star{{ i }}" 
+                                   class="hidden peer/star{{ i }}"
+                                   {% if rating.rating == i %}checked{% endif %}>
+                            <label for="star{{ i }}" 
+                                   class="text-3xl text-gray-300 cursor-pointer transition-colors hover:text-yellow-400 peer-checked/star{{ i }}:text-yellow-400">
+                                ★
+                            </label>
+                        {% endfor %}
+                    </div>
+                    <p class="text-sm text-gray-600 mt-1">Click the stars to rate (1-5 stars)</p>
+                </div>
+
+                <!-- Review Text -->
+                <div>
+                    <label for="review_text" class="block text-sm font-medium text-gray-700 mb-2">
+                        Your Review
+                    </label>
+                    <textarea name="review_text" id="review_text" rows="4" 
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Share your thoughts about this {{ rating.content.type }}...">{% if rating.review_text %}{{ rating.review_text }}{% endif %}</textarea>
+                </div>
+
+                <!-- Spoiler Warning -->
+                <div class="flex items-center">
+                    <input type="checkbox" name="is_spoiler" id="is_spoiler" 
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                           {% if rating.is_spoiler %}checked{% endif %}>
+                    <label for="is_spoiler" class="ml-2 block text-sm text-gray-700">
+                        This review contains spoilers
+                    </label>
+                </div>
+
+                <!-- Privacy Setting -->
+                <div class="flex items-center">
+                    <input type="checkbox" name="is_public" id="is_public" 
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                           {% if rating.is_public %}checked{% endif %}>
+                    <label for="is_public" class="ml-2 block text-sm text-gray-700">
+                        Make this rating public
+                    </label>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="flex gap-4">
+                    <button type="submit" 
+                            class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
+                        Update Rating
+                    </button>
+                    
+                    <a href="{{ url_for('content.detail', tmdb_id=rating.content_ref.tmdb_id, content_type=rating.content_ref.type) }}" 
+                       class="px-6 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Rating History -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Rating History</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span class="text-gray-700">Originally rated:</span>
+                    <div class="flex items-center gap-2">
+                        <div class="star-rating text-yellow-400">
+                            {% for i in range(1, 6) %}
+                                {% if i <= rating.rating %}
+                                    ★
+                                {% else %}
+                                    ☆
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <span class="text-sm text-gray-600">{{ rating.created_at.strftime('%B %d, %Y') }}</span>
+                    </div>
+                </div>
+                
+                {% if rating.updated_at != rating.created_at %}
+                    <div class="flex justify-between items-center py-2">
+                        <span class="text-gray-700">Last updated:</span>
+                        <span class="text-sm text-gray-600">{{ rating.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                    </div>
+                {% endif %}
+                
+                {% if rating.helpful_votes > 0 or rating.total_votes > 0 %}
+                    <div class="flex justify-between items-center py-2">
+                        <span class="text-gray-700">Helpfulness:</span>
+                        <span class="text-sm text-gray-600">
+                            {{ rating.helpful_votes }} of {{ rating.total_votes }} found helpful
+                            {% if rating.total_votes > 0 %}
+                                ({{ rating.get_helpfulness_percentage() }}%)
+                            {% endif %}
+                        </span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Star rating interactivity
+document.querySelectorAll('.star-rating-input label').forEach((star, index) => {
+    star.addEventListener('mouseenter', () => {
+        document.querySelectorAll('.star-rating-input label').forEach((s, i) => {
+            if (i <= index) {
+                s.style.color = '#FBB03B';
+            } else {
+                s.style.color = '#D1D5DB';
+            }
+        });
+    });
+    
+    star.addEventListener('mouseleave', () => {
+        const checkedInput = document.querySelector('.star-rating-input input:checked');
+        if (checkedInput) {
+            const checkedIndex = Array.from(document.querySelectorAll('.star-rating-input input')).indexOf(checkedInput);
+            document.querySelectorAll('.star-rating-input label').forEach((s, i) => {
+                if (i <= checkedIndex) {
+                    s.style.color = '#FBB03B';
+                } else {
+                    s.style.color = '#D1D5DB';
+                }
+            });
+        } else {
+            document.querySelectorAll('.star-rating-input label').forEach(s => {
+                s.style.color = '#D1D5DB';
+            });
+        }
+    });
+    
+    star.addEventListener('click', () => {
+        document.querySelectorAll('.star-rating-input label').forEach((s, i) => {
+            if (i <= index) {
+                s.style.color = '#FBB03B';
+            } else {
+                s.style.color = '#D1D5DB';
+            }
+        });
+    });
+});
+
+// Initialize star display
+document.addEventListener('DOMContentLoaded', () => {
+    const checkedInput = document.querySelector('.star-rating-input input:checked');
+    if (checkedInput) {
+        const checkedIndex = Array.from(document.querySelectorAll('.star-rating-input input')).indexOf(checkedInput);
+        document.querySelectorAll('.star-rating-input label').forEach((s, i) => {
+            if (i <= checkedIndex) {
+                s.style.color = '#FBB03B';
+            } else {
+                s.style.color = '#D1D5DB';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

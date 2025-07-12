@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}{{ group.name }} Rating for {{ content.title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="flex items-center gap-6">
+                <div class="flex-shrink-0">
+                    {% if content.poster_url %}
+                        <img src="{{ content.poster_url }}" alt="{{ content.title }}" 
+                             class="w-24 h-36 object-cover rounded-lg shadow-md">
+                    {% else %}
+                        <div class="w-24 h-36 bg-gray-300 rounded-lg flex items-center justify-center">
+                            <span class="text-gray-500 text-xs">No Image</span>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="flex-1">
+                    <nav class="text-sm text-gray-600 mb-2">
+                        <a href="{{ url_for('groups.view', group_id=group.id) }}" class="hover:text-blue-600">{{ group.name }}</a>
+                        <span class="mx-2">></span>
+                        <span>Group Rating</span>
+                    </nav>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ content.title }}</h1>
+                    {% if content.year %}
+                        <p class="text-gray-600 mb-2">{{ content.year }}</p>
+                    {% endif %}
+                    
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        {% for genre in content.get_genres() %}
+                            <span class="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">{{ genre }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="flex-shrink-0">
+                    <a href="{{ url_for('ratings.rate_content', content_id=content.id) }}" 
+                       class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                        Rate This {{ content.type|title }}
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Group Rating Summary -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Group Consensus -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">{{ group.name }} Consensus</h2>
+                
+                {% if group_rating.average_rating %}
+                    <div class="text-center">
+                        <div class="mb-4">
+                            <div class="star-rating text-yellow-400 text-4xl mb-2">
+                                {% for i in range(1, 6) %}
+                                    {% if i <= group_rating.average_rating %}
+                                        ★
+                                    {% else %}
+                                        ☆
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <div class="text-3xl font-bold text-gray-900">{{ "%.1f"|format(group_rating.average_rating) }}/5</div>
+                            <p class="text-gray-600">Based on {{ group_rating.total_ratings }} member{{ 's' if group_rating.total_ratings != 1 else '' }}</p>
+                        </div>
+                        
+                        <!-- Rating Distribution -->
+                        <div class="space-y-2">
+                            {% for rating, count in group_rating.get_rating_distribution().items() %}
+                                {% set percentage = (count / group_rating.total_ratings * 100) if group_rating.total_ratings > 0 else 0 %}
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 text-sm font-medium">{{ rating }}★</span>
+                                    <div class="flex-1 bg-gray-200 rounded-full h-2">
+                                        <div class="bg-yellow-400 h-2 rounded-full" style="width: {{ percentage }}%"></div>
+                                    </div>
+                                    <span class="w-8 text-sm text-gray-600 text-right">{{ count }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="text-center py-8">
+                        <div class="text-gray-500 text-lg mb-4">No ratings yet</div>
+                        <p class="text-gray-600 mb-6">No group members have rated this {{ content.type }} yet.</p>
+                        <a href="{{ url_for('ratings.rate_content', content_id=content.id) }}" 
+                           class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                            Be the First to Rate
+                        </a>
+                    </div>
+                {% endif %}
+                
+                {% if group_rating.consensus_review %}
+                    <div class="mt-6 pt-6 border-t border-gray-200">
+                        <h3 class="font-semibold text-gray-900 mb-2">Group Consensus Review</h3>
+                        <p class="text-gray-700">{{ group_rating.consensus_review }}</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Overall Stats -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Overall Statistics</h2>
+                
+                {% if content.get_average_rating() %}
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-700">Global Average:</span>
+                            <div class="flex items-center gap-2">
+                                <div class="star-rating text-yellow-400">
+                                    {% for i in range(1, 6) %}
+                                        {% if i <= content.get_average_rating() %}
+                                            ★
+                                        {% else %}
+                                            ☆
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <span class="font-semibold">{{ "%.1f"|format(content.get_average_rating()) }}/5</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-700">Total Ratings:</span>
+                            <span class="font-semibold">{{ content.get_rating_count() }}</span>
+                        </div>
+                        
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-700">Total Reviews:</span>
+                            <span class="font-semibold">{{ content.get_review_count() }}</span>
+                        </div>
+                        
+                        {% if group_rating.average_rating %}
+                            <div class="pt-4 border-t border-gray-200">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-700">Group vs Global:</span>
+                                    <span class="font-semibold {% if group_rating.average_rating > content.get_average_rating() %}text-green-600{% elif group_rating.average_rating < content.get_average_rating() %}text-red-600{% else %}text-gray-600{% endif %}">
+                                        {% set diff = group_rating.average_rating - content.get_average_rating() %}
+                                        {% if diff > 0 %}+{% endif %}{{ "%.1f"|format(diff) }}
+                                    </span>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-8 text-gray-500">
+                        No global ratings available
+                    </div>
+                {% endif %}
+                
+                <div class="mt-6">
+                    <a href="{{ url_for('ratings.view_reviews', content_id=content.id) }}" 
+                       class="block w-full text-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                        View All Reviews
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Individual Member Ratings -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-6">Member Ratings</h2>
+            
+            {% if member_ratings %}
+                <div class="space-y-4">
+                    {% for rating in member_ratings %}
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex-shrink-0">
+                                        {% if rating.user.profile_picture and rating.user.profile_picture != 'default.jpg' %}
+                                            <img src="{{ url_for('static', filename='uploads/profile_pics/' + rating.user.profile_picture) }}" 
+                                                 alt="{{ rating.user.username }}" 
+                                                 class="w-10 h-10 rounded-full object-cover">
+                                        {% else %}
+                                            <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                                                <span class="text-gray-600 font-semibold text-sm">{{ rating.user.username[0]|upper }}</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div>
+                                        <h4 class="font-semibold text-gray-900">{{ rating.user.get_full_name() }}</h4>
+                                        <p class="text-sm text-gray-600">@{{ rating.user.username }}</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="text-right">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <div class="star-rating text-yellow-400">
+                                            {% for i in range(1, 6) %}
+                                                {% if i <= rating.rating %}
+                                                    ★
+                                                {% else %}
+                                                    ☆
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        <span class="font-semibold">{{ rating.rating }}/5</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500">{{ rating.created_at.strftime('%B %d, %Y') }}</p>
+                                </div>
+                            </div>
+                            
+                            {% if rating.review_text %}
+                                {% if rating.is_spoiler %}
+                                    <div class="mb-3 p-2 bg-yellow-100 border border-yellow-300 rounded text-sm text-yellow-800">
+                                        <strong>Spoiler Warning:</strong> This review contains spoilers
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="text-gray-700">
+                                    <p>{{ rating.review_text }}</p>
+                                </div>
+                            {% endif %}
+                            
+                            {% if rating.helpful_votes > 0 or rating.total_votes > 0 %}
+                                <div class="mt-3 pt-3 border-t border-gray-200">
+                                    <div class="text-sm text-gray-600">
+                                        {{ rating.helpful_votes }} of {{ rating.total_votes }} found helpful
+                                        {% if rating.total_votes > 0 %}
+                                            ({{ rating.get_helpfulness_percentage() }}%)
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-8">
+                    <div class="text-gray-500 text-lg mb-4">No member ratings yet</div>
+                    <p class="text-gray-600 mb-6">Group members haven't rated this {{ content.type }} yet.</p>
+                    <a href="{{ url_for('ratings.rate_content', content_id=content.id) }}" 
+                       class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                        Rate This {{ content.type|title }}
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
