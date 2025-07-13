@@ -308,6 +308,86 @@
                     {% endfor %}
                 </div>
 
+                <!-- Horizontal Recommendations Section -->
+                {% if recommendations %}
+                <div class="mt-5 mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="mb-0">
+                            <i class="fas fa-magic text-warning me-2"></i>
+                            Recommended for You
+                        </h4>
+                        <a href="{{ url_for('recommendations.index') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-eye"></i> View All
+                        </a>
+                    </div>
+                    
+                    <div class="row g-3">
+                        {% for rec in recommendations %}
+                        <div class="col-lg-2 col-md-3 col-sm-4 col-6">
+                            <div class="card h-100 recommendation-card shadow-sm">
+                                <div class="position-relative">
+                                    {% if rec.content.poster_url %}
+                                    <img src="{{ rec.content.poster_url }}" class="card-img-top" 
+                                         alt="{{ rec.content.title }}" style="height: 200px; object-fit: cover;">
+                                    {% else %}
+                                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
+                                         style="height: 200px;">
+                                        <i class="fas fa-film fa-2x text-muted"></i>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- Rating Badge -->
+                                    {% if rec.content.rating %}
+                                    <div class="position-absolute top-0 start-0 m-2">
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-star"></i> {{ "%.1f"|format(rec.content.rating) }}
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- Quick Add Button -->
+                                    <div class="position-absolute bottom-0 end-0 m-2">
+                                        <button class="btn btn-primary btn-sm rounded-circle" 
+                                                data-tmdb-id="{{ rec.content.tmdb_id or '' }}" 
+                                                data-content-type="{{ rec.content.type if rec.content.type != 'tv_show' else 'tv' }}" 
+                                                data-title="{{ rec.content.title }}"
+                                                onclick="addRecommendationToWatchlist(this.dataset.tmdbId || null, this.dataset.contentType, this.dataset.title)"
+                                                title="Add to Watchlist">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="card-body p-2">
+                                    <h6 class="card-title mb-1" style="font-size: 0.9rem;">
+                                        {% if rec.content.tmdb_id %}
+                                            <a href="{{ url_for('content.detail', tmdb_id=rec.content.tmdb_id, content_type=(rec.content.type if rec.content.type != 'tv_show' else 'tv')) }}" 
+                                               class="text-decoration-none text-dark" 
+                                               data-rec-id="{{ rec.id }}"
+                                               onclick="trackRecommendationClick(this.dataset.recId)">
+                                                {{ rec.content.title }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">{{ rec.content.title }}</span>
+                                        {% endif %}
+                                    </h6>
+                                    <p class="card-text small text-muted mb-1">
+                                        {{ rec.content.type.replace('_', ' ').title() }}
+                                        {% if rec.content.year %} • {{ rec.content.year }}{% endif %}
+                                    </p>
+                                    {% if rec.reasoning %}
+                                    <p class="card-text small text-muted mb-0" style="font-size: 0.75rem;">
+                                        {{ rec.reasoning[:50] }}{% if rec.reasoning|length > 50 %}...{% endif %}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Pagination -->
                 {% if items.pages > 1 %}
                 <nav aria-label="Watchlist pagination">
@@ -420,5 +500,126 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Function to track recommendation clicks
+function trackRecommendationClick(recommendationId) {
+    fetch('{{ url_for("recommendations.submit_feedback") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            recommendation_id: recommendationId,
+            feedback_type: 'clicked'
+        })
+    }).catch(error => console.error('Error tracking click:', error));
+}
+
+// Function to add recommendation to watchlist
+function addRecommendationToWatchlist(tmdbId, contentType, title) {
+    if (!tmdbId) {
+        alert('Cannot add this content to watchlist - no TMDB ID available');
+        return;
+    }
+    
+    fetch('{{ url_for("content.toggle_watchlist") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            tmdb_id: tmdbId,
+            content_type: contentType,
+            status: 'want_to_watch'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+            alert.style.top = '20px';
+            alert.style.right = '20px';
+            alert.style.zIndex = '9999';
+            alert.innerHTML = `
+                Added "${title}" to your watchlist!
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alert);
+            
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.parentNode.removeChild(alert);
+                }
+            }, 3000);
+            
+            // Optionally reload page to show updated watchlist
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            alert('Error adding to watchlist: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error adding to watchlist');
+    });
+}
 </script>
+
+<style>
+/* Recommendation cards styling */
+.recommendation-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border: 1px solid #e9ecef;
+}
+
+.recommendation-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+}
+
+.recommendation-card .card-title a {
+    transition: color 0.2s ease-in-out;
+}
+
+.recommendation-card .card-title a:hover {
+    color: #0d6efd !important;
+}
+
+.recommendation-card .btn-primary {
+    opacity: 0.8;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.recommendation-card:hover .btn-primary {
+    opacity: 1;
+}
+
+/* Responsive adjustments for recommendations */
+@media (max-width: 768px) {
+    .recommendation-card .card-img-top {
+        height: 150px !important;
+    }
+    
+    .recommendation-card .card-body {
+        padding: 0.5rem !important;
+    }
+    
+    .recommendation-card .card-title {
+        font-size: 0.8rem !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .recommendation-card .card-img-top {
+        height: 120px !important;
+    }
+}
+</style>
 {% endblock %}

@@ -371,6 +371,7 @@
                             <i class="fas fa-times me-2"></i>Cancel
                         </button>
                         <form method="POST" action="{{ url_for('ratings.delete_rating', rating_id=review.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-danger">
                                 <i class="fas fa-trash me-2"></i>Delete Review
                             </button>

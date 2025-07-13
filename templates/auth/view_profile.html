@@ -444,10 +444,13 @@ const notificationManager = new NotificationManager();
 function sendFriendRequest(userId, userName) {
     showLoading();
     
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
     fetch('/auth/api/friend-request/send', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({ user_id: userId })
     })
@@ -455,7 +458,7 @@ function sendFriendRequest(userId, userName) {
     .then(data => {
         hideLoading();
         if (data.success) {
-            notificationManager.notificationManager.showToast(`Friend request sent to ${userName}!`, 'success');
+            notificationManager.showToast(`Friend request sent to ${userName}!`, 'success');
             setTimeout(() => location.reload(), 1500);
         } else {
             notificationManager.showToast(data.message || 'Failed to send friend request', 'danger');
@@ -464,6 +467,7 @@ function sendFriendRequest(userId, userName) {
     .catch(error => {
         hideLoading();
         notificationManager.showToast('An error occurred', 'danger');
+        console.error('Error:', error);
     });
 }
 
@@ -471,10 +475,13 @@ function sendFriendRequest(userId, userName) {
 function acceptFriendRequest(userId, userName) {
     showLoading();
     
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
     fetch('/auth/api/friend-request/accept', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({ user_id: userId })
     })
@@ -491,6 +498,7 @@ function acceptFriendRequest(userId, userName) {
     .catch(error => {
         hideLoading();
         notificationManager.showToast('An error occurred', 'danger');
+        console.error('Error:', error);
     });
 }
 
@@ -498,10 +506,13 @@ function acceptFriendRequest(userId, userName) {
 function declineFriendRequest(userId, userName) {
     showLoading();
     
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
     fetch('/auth/api/friend-request/decline', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({ user_id: userId })
     })
@@ -518,6 +529,7 @@ function declineFriendRequest(userId, userName) {
     .catch(error => {
         hideLoading();
         notificationManager.showToast('An error occurred', 'danger');
+        console.error('Error:', error);
     });
 }
 
@@ -529,10 +541,13 @@ function removeFriend(userId, userName) {
     
     showLoading();
     
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
     fetch('/auth/api/friend/remove', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({ user_id: userId })
     })
@@ -549,6 +564,7 @@ function removeFriend(userId, userName) {
     .catch(error => {
         hideLoading();
         notificationManager.showToast('An error occurred', 'danger');
+        console.error('Error:', error);
     });
 }
 
@@ -560,10 +576,13 @@ function blockUser(userId, userName) {
     
     showLoading();
     
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
     fetch('/auth/api/user/block', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({ user_id: userId })
     })
@@ -580,6 +599,7 @@ function blockUser(userId, userName) {
     .catch(error => {
         hideLoading();
         notificationManager.showToast('An error occurred', 'danger');
+        console.error('Error:', error);
     });
 }
 
@@ -587,10 +607,13 @@ function blockUser(userId, userName) {
 function unblockUser(userId, userName) {
     showLoading();
     
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    
     fetch('/auth/api/user/unblock', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
         },
         body: JSON.stringify({ user_id: userId })
     })
@@ -607,6 +630,7 @@ function unblockUser(userId, userName) {
     .catch(error => {
         hideLoading();
         notificationManager.showToast('An error occurred', 'danger');
+        console.error('Error:', error);
     });
 }
 

@@ -11,10 +11,15 @@ import json
 from app import db
 from models import (User, Content, UserWatchlist, GroupWatchlist, Group, GroupMember, 
                    WatchlistShare, GroupWatchlistVote)
+from models.recommendations import Recommendation
 from forms import (AddToWatchlistForm, UpdateWatchlistForm, AddToGroupWatchlistForm, 
                   ShareWatchlistForm, CreateWatchSessionForm, WatchlistFilterForm)
+from utils.recommendation_engine import RecommendationEngine
 
 watchlist_bp = Blueprint('watchlist', __name__, url_prefix='/watchlist')
+
+# Initialize recommendation engine
+rec_engine = RecommendationEngine()
 
 # Personal Watchlist Routes
 
@@ -87,10 +92,30 @@ def my_watchlist():
     # Get statistics
     stats = get_watchlist_stats(current_user.id)
     
+    # Get personalized recommendations based on watchlist
+    user_recommendations = Recommendation.query.filter_by(
+        user_id=current_user.id,
+        status='active'
+    ).filter(
+        Recommendation.expires_at > datetime.utcnow()
+    ).order_by(Recommendation.score.desc()).limit(6).all()
+    
+    # If no recent recommendations, generate some
+    if not user_recommendations:
+        try:
+            user_recommendations = rec_engine.generate_recommendations(
+                user_id=current_user.id,
+                algorithm='hybrid',
+                limit=6
+            )
+        except Exception as e:
+            user_recommendations = []
+    
     return render_template('watchlist/my_watchlist.html', 
                          items=items, 
                          filter_form=filter_form,
-                         stats=stats)
+                         stats=stats,
+                         recommendations=user_recommendations)
 
 
 @watchlist_bp.route('/add/<int:content_id>')
@@ -107,7 +132,11 @@ def add_to_watchlist(content_id):
     
     if existing:
         flash('This content is already in your watchlist.', 'info')
-        return redirect(request.referrer or url_for('content.detail', tmdb_id=content.tmdb_id, content_type=content.type))
+        # Safe redirect - check if content has tmdb_id for proper URL
+        if content.tmdb_id:
+            return redirect(request.referrer or url_for('content.detail', tmdb_id=content.tmdb_id, content_type=content.type))
+        else:
+            return redirect(request.referrer or url_for('content.index'))
     
     form = AddToWatchlistForm()
     

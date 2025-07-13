@@ -192,7 +192,13 @@ class DiscussionManager {
     async viewDiscussion(discussionId, notificationId) {
         // Mark notification as read
         try {
-            await fetch(`/discussions/api/notifications/${notificationId}/read`, { method: 'POST' });
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            await fetch(`/discussions/api/notifications/${notificationId}/read`, { 
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            });
             this.loadNotifications(); // Refresh notifications
         } catch (error) {
             console.error('Error marking notification as read:', error);
@@ -204,11 +210,17 @@ class DiscussionManager {
     
     async markNotificationsAsRead() {
         const unreadNotifications = document.querySelectorAll('.notification-item[data-notification-id]');
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         
         for (const notificationEl of unreadNotifications) {
             const notificationId = notificationEl.dataset.notificationId;
             try {
-                await fetch(`/discussions/api/notifications/${notificationId}/read`, { method: 'POST' });
+                await fetch(`/discussions/api/notifications/${notificationId}/read`, { 
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
+                });
             } catch (error) {
                 console.error('Error marking notification as read:', error);
             }

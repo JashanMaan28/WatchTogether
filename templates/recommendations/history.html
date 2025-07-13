@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title %}Recommendation History{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-history text-primary me-2"></i>
+                    Recommendation History
+                </h1>
+                <div class="btn-group">
+                    <a href="{{ url_for('recommendations.index') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left me-1"></i>
+                        Back to Recommendations
+                    </a>
+                    <a href="{{ url_for('recommendations.analytics') }}" class="btn btn-outline-info">
+                        <i class="fas fa-chart-bar me-1"></i>
+                        Analytics
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Overview -->
+    {% if history_records %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Performance Overview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% set total_recs = history_records | sum(attribute='total_recommendations') %}
+                        {% set avg_view_rate = (history_records | sum(attribute='view_rate')) / (history_records | length) %}
+                        {% set avg_click_rate = (history_records | sum(attribute='click_rate')) / (history_records | length) %}
+                        {% set avg_like_rate = (history_records | sum(attribute='like_rate')) / (history_records | length) %}
+                        
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h3 class="text-primary">{{ total_recs }}</h3>
+                                <p class="text-muted mb-0">Total Recommendations</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h3 class="text-info">{{ "%.1f"|format(avg_view_rate * 100) }}%</h3>
+                                <p class="text-muted mb-0">Average View Rate</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h3 class="text-success">{{ "%.1f"|format(avg_click_rate * 100) }}%</h3>
+                                <p class="text-muted mb-0">Average Click Rate</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h3 class="text-warning">{{ "%.1f"|format(avg_like_rate * 100) }}%</h3>
+                                <p class="text-muted mb-0">Average Like Rate</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Records -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Generation History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Algorithm</th>
+                                    <th>Recommendations</th>
+                                    <th>View Rate</th>
+                                    <th>Click Rate</th>
+                                    <th>Like Rate</th>
+                                    <th>Experiment</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in history_records %}
+                                <tr>
+                                    <td>{{ record.generation_date.strftime('%b %d, %Y %H:%M') }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ record.algorithm }}</span>
+                                        {% if record.variant %}
+                                        <span class="badge bg-info">{{ record.variant }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ record.total_recommendations }}</td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-info" style="width: {{ (record.view_rate * 100)|round }}%">
+                                                {{ "%.1f"|format(record.view_rate * 100) }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-success" style="width: {{ (record.click_rate * 100)|round }}%">
+                                                {{ "%.1f"|format(record.click_rate * 100) }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-warning" style="width: {{ (record.like_rate * 100)|round }}%">
+                                                {{ "%.1f"|format(record.like_rate * 100) }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if record.experiment_id %}
+                                        <span class="badge bg-secondary">{{ record.experiment_id }}</span>
+                                        {% else %}
+                                        <span class="text-muted">None</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Detailed Recommendations with Feedback -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comments me-2"></i>
+                        Recent Recommendations & Feedback
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recommendations_with_feedback %}
+                    <div class="row">
+                        {% for recommendation, feedback in recommendations_with_feedback %}
+                        <div class="col-lg-6 mb-4">
+                            <div class="card h-100 {% if feedback %}border-{{ 'success' if feedback.feedback_type == 'like' else 'danger' if feedback.feedback_type == 'dislike' else 'warning' }}{% endif %}">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-start">
+                                        {% if recommendation.content.poster_url %}
+                                        <img src="{{ recommendation.content.poster_url }}" 
+                                             class="me-3" 
+                                             style="width: 80px; height: 120px; object-fit: cover;"
+                                             alt="{{ recommendation.content.title }}">
+                                        {% endif %}
+                                        
+                                        <div class="flex-grow-1">
+                                            <h6 class="card-title">{{ recommendation.content.title }}</h6>
+                                            
+                                            <div class="mb-2">
+                                                <span class="badge bg-primary">{{ recommendation.content.type }}</span>
+                                                {% if recommendation.content.year %}
+                                                <span class="badge bg-secondary">{{ recommendation.content.year }}</span>
+                                                {% endif %}
+                                                <span class="badge bg-info">{{ recommendation.algorithm }}</span>
+                                            </div>
+                                            
+                                            <p class="card-text small">
+                                                <strong>Score:</strong> {{ "%.2f"|format(recommendation.score) }}/5.0<br>
+                                                <strong>Created:</strong> {{ recommendation.created_at.strftime('%b %d, %Y') }}<br>
+                                                {% if recommendation.viewed_at %}
+                                                <strong>Viewed:</strong> {{ recommendation.viewed_at.strftime('%b %d, %Y') }}<br>
+                                                {% endif %}
+                                                {% if recommendation.clicked_at %}
+                                                <strong>Clicked:</strong> {{ recommendation.clicked_at.strftime('%b %d, %Y') }}<br>
+                                                {% endif %}
+                                            </p>
+                                            
+                                            {% if recommendation.reasoning %}
+                                            <p class="card-text small text-muted">
+                                                <em>{{ recommendation.reasoning }}</em>
+                                            </p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    {% if feedback %}
+                                    <div class="mt-3 p-2 rounded bg-light">
+                                        <div class="d-flex align-items-center mb-2">
+                                            {% if feedback.feedback_type == 'like' %}
+                                            <i class="fas fa-thumbs-up text-success me-2"></i>
+                                            <strong class="text-success">Liked</strong>
+                                            {% elif feedback.feedback_type == 'dislike' %}
+                                            <i class="fas fa-thumbs-down text-danger me-2"></i>
+                                            <strong class="text-danger">Disliked</strong>
+                                            {% elif feedback.feedback_type == 'not_interested' %}
+                                            <i class="fas fa-times text-warning me-2"></i>
+                                            <strong class="text-warning">Not Interested</strong>
+                                            {% elif feedback.feedback_type == 'already_seen' %}
+                                            <i class="fas fa-eye text-info me-2"></i>
+                                            <strong class="text-info">Already Seen</strong>
+                                            {% endif %}
+                                            <small class="text-muted ms-auto">
+                                                {{ feedback.created_at.strftime('%b %d, %Y') }}
+                                            </small>
+                                        </div>
+                                        
+                                        {% if feedback.comment %}
+                                        <p class="mb-0 small">
+                                            <strong>Comment:</strong> {{ feedback.comment }}
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                    {% else %}
+                                    <div class="mt-3">
+                                        <small class="text-muted">
+                                            <i class="fas fa-clock me-1"></i>
+                                            No feedback provided
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Recommendation History</h5>
+                        <p class="text-muted">Start by generating some recommendations!</p>
+                        <a href="{{ url_for('recommendations.index') }}" class="btn btn-primary">
+                            <i class="fas fa-magic me-1"></i>
+                            Get Recommendations
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.progress {
+    background-color: #e9ecef;
+}
+
+.card.border-success {
+    border-color: #198754 !important;
+}
+
+.card.border-danger {
+    border-color: #dc3545 !important;
+}
+
+.card.border-warning {
+    border-color: #ffc107 !important;
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+</style>
+{% endblock %}

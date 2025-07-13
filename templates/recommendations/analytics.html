@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+{% block title %}Recommendation Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-chart-bar text-primary me-2"></i>
+                    Recommendation Analytics
+                </h1>
+                <div class="btn-group">
+                    <a href="{{ url_for('recommendations.index') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left me-1"></i>
+                        Back to Recommendations
+                    </a>
+                    <a href="{{ url_for('recommendations.history') }}" class="btn btn-outline-info">
+                        <i class="fas fa-history me-1"></i>
+                        History
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-magic fa-3x mb-2"></i>
+                    <h3>{{ total_recommendations }}</h3>
+                    <p class="mb-0">Total Recommendations</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-comments fa-3x mb-2"></i>
+                    <h3>{{ feedback_stats | length }}</h3>
+                    <p class="mb-0">Feedback Provided</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-robot fa-3x mb-2"></i>
+                    <h3>{{ algorithm_stats | length }}</h3>
+                    <p class="mb-0">Algorithms Used</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-3x mb-2"></i>
+                    <h3>
+                        {% if algorithm_stats %}
+                        {{ "%.1f"|format((algorithm_stats | sum(attribute='avg_like_rate') / (algorithm_stats | length)) * 100) }}%
+                        {% else %}
+                        0%
+                        {% endif %}
+                    </h3>
+                    <p class="mb-0">Average Like Rate</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Distribution -->
+    {% if feedback_stats %}
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Feedback Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="feedbackChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Feedback Breakdown
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Feedback Type</th>
+                                    <th>Count</th>
+                                    <th>Percentage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set total_feedback = feedback_stats | sum(attribute='1') %}
+                                {% for feedback_type, count in feedback_stats %}
+                                <tr>
+                                    <td>
+                                        {% if feedback_type == 'like' %}
+                                        <i class="fas fa-thumbs-up text-success me-2"></i>Liked
+                                        {% elif feedback_type == 'dislike' %}
+                                        <i class="fas fa-thumbs-down text-danger me-2"></i>Disliked
+                                        {% elif feedback_type == 'not_interested' %}
+                                        <i class="fas fa-times text-warning me-2"></i>Not Interested
+                                        {% elif feedback_type == 'already_seen' %}
+                                        <i class="fas fa-eye text-info me-2"></i>Already Seen
+                                        {% else %}
+                                        <i class="fas fa-question text-muted me-2"></i>{{ feedback_type.title() }}
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ count }}</td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar 
+                                                {% if feedback_type == 'like' %}bg-success
+                                                {% elif feedback_type == 'dislike' %}bg-danger
+                                                {% elif feedback_type == 'not_interested' %}bg-warning
+                                                {% else %}bg-info{% endif %}" 
+                                                data-width="{{ (count / total_feedback * 100)|round }}">
+                                                {{ "%.1f"|format(count / total_feedback * 100) }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Algorithm Performance -->
+    {% if algorithm_stats %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-robot me-2"></i>
+                        Algorithm Performance Comparison
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Algorithm</th>
+                                    <th>Average View Rate</th>
+                                    <th>Average Click Rate</th>
+                                    <th>Average Like Rate</th>
+                                    <th>Overall Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for algorithm, avg_view_rate, avg_click_rate, avg_like_rate in algorithm_stats %}
+                                {% set overall_score = ((avg_view_rate or 0) * 0.3 + (avg_click_rate or 0) * 0.4 + (avg_like_rate or 0) * 0.3) * 100 %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-primary">{{ algorithm }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-info" 
+                                                data-width="{{ ((avg_view_rate or 0) * 100)|round }}">
+                                                {{ "%.1f"|format((avg_view_rate or 0) * 100) }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-success" 
+                                                data-width="{{ ((avg_click_rate or 0) * 100)|round }}">
+                                                {{ "%.1f"|format((avg_click_rate or 0) * 100) }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-warning" 
+                                                data-width="{{ ((avg_like_rate or 0) * 100)|round }}">
+                                                {{ "%.1f"|format((avg_like_rate or 0) * 100) }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar 
+                                                {% if overall_score >= 70 %}bg-success
+                                                {% elif overall_score >= 50 %}bg-warning
+                                                {% else %}bg-danger{% endif %}" 
+                                                data-width="{{ overall_score|round }}">
+                                                {{ "%.1f"|format(overall_score) }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recommendations -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        Insights & Recommendations
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">
+                                <i class="fas fa-thumbs-up me-2"></i>
+                                What's Working Well
+                            </h6>
+                            <ul class="list-unstyled">
+                                {% if algorithm_stats %}
+                                {% set best_algorithm = algorithm_stats | sort(attribute='avg_like_rate') | reverse | first %}
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    <strong>{{ best_algorithm[0] }}</strong> algorithm performs best with 
+                                    {{ "%.1f"|format((best_algorithm[3] or 0) * 100) }}% like rate
+                                </li>
+                                {% endif %}
+                                
+                                {% if feedback_stats %}
+                                {% set like_feedback = feedback_stats | selectattr('0', 'equalto', 'like') | list %}
+                                {% if like_feedback %}
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    You've liked {{ like_feedback[0][1] }} recommendations, showing good engagement
+                                </li>
+                                {% endif %}
+                                {% endif %}
+                                
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    You have {{ total_recommendations }} total recommendations to analyze
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="text-warning">
+                                <i class="fas fa-chart-line me-2"></i>
+                                Areas for Improvement
+                            </h6>
+                            <ul class="list-unstyled">
+                                {% if total_recommendations < 10 %}
+                                <li class="mb-2">
+                                    <i class="fas fa-arrow-up text-warning me-2"></i>
+                                    Generate more recommendations to improve personalization
+                                </li>
+                                {% endif %}
+                                
+                                {% if feedback_stats | length < 5 %}
+                                <li class="mb-2">
+                                    <i class="fas fa-arrow-up text-warning me-2"></i>
+                                    Provide more feedback to help improve recommendations
+                                </li>
+                                {% endif %}
+                                
+                                {% if algorithm_stats %}
+                                {% set worst_algorithm = algorithm_stats | sort(attribute='avg_like_rate') | first %}
+                                {% if (worst_algorithm[3] or 0) < 0.3 %}
+                                <li class="mb-2">
+                                    <i class="fas fa-arrow-up text-warning me-2"></i>
+                                    Consider adjusting preferences - {{ worst_algorithm[0] }} algorithm 
+                                    has low performance
+                                </li>
+                                {% endif %}
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Next Steps
+                                </h6>
+                                <ul class="mb-0">
+                                    <li>Rate more content to improve recommendation accuracy</li>
+                                    <li>Update your preferences if your taste has changed</li>
+                                    <li>Join groups to discover content your friends enjoy</li>
+                                    <li>Provide feedback on recommendations to help us learn</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if feedback_stats %}
+<!-- Hidden data for JavaScript -->
+<div id="feedbackData" style="display: none;">
+    {% for feedback_type, count in feedback_stats %}
+    <div class="feedback-item" data-type="{{ feedback_type }}" data-count="{{ count }}"></div>
+    {% endfor %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Feedback Distribution Chart
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('feedbackChart').getContext('2d');
+    
+    // Extract data from hidden elements
+    const feedbackItems = document.querySelectorAll('#feedbackData .feedback-item');
+    const labels = [];
+    const data = [];
+    
+    feedbackItems.forEach(item => {
+        const type = item.dataset.type;
+        const count = parseInt(item.dataset.count);
+        
+        // Convert feedback type to display name
+        let displayName;
+        switch(type) {
+            case 'like':
+                displayName = 'Liked';
+                break;
+            case 'dislike':
+                displayName = 'Disliked';
+                break;
+            case 'not_interested':
+                displayName = 'Not Interested';
+                break;
+            case 'already_seen':
+                displayName = 'Already Seen';
+                break;
+            default:
+                displayName = type.charAt(0).toUpperCase() + type.slice(1);
+        }
+        
+        labels.push(displayName);
+        data.push(count);
+    });
+    
+    const feedbackChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: [
+                    '#28a745',  // Green for likes
+                    '#dc3545',  // Red for dislikes
+                    '#ffc107',  // Yellow for not interested
+                    '#17a2b8',  // Blue for already seen
+                    '#6c757d'   // Gray for others
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+
+// Set progress bar widths from data attributes
+document.addEventListener('DOMContentLoaded', function() {
+    const progressBars = document.querySelectorAll('.progress-bar[data-width]');
+    progressBars.forEach(bar => {
+        const width = bar.getAttribute('data-width');
+        bar.style.width = width + '%';
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

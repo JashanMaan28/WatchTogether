@@ -49,6 +49,9 @@ def create_app(config_name=None):
     from routes.ratings import ratings_bp as ratings_blueprint
     app.register_blueprint(ratings_blueprint)
     
+    from routes.recommendations import recommendations_bp as recommendations_blueprint
+    app.register_blueprint(recommendations_blueprint)
+    
     from routes.discussions import discussion_bp as discussion_blueprint
     app.register_blueprint(discussion_blueprint)
     

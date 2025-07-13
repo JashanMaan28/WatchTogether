@@ -454,6 +454,46 @@ def add_from_tmdb():
         flash('Error adding content to database', 'error')
         return redirect(request.referrer or url_for('content.index'))
 
+@content.route('/local/<int:content_id>')
+@login_required
+def local_detail(content_id):
+    """Detail page for local content (content without TMDB ID)"""
+    content_item = Content.query.get_or_404(content_id)
+    
+    # Get user's watchlist status
+    in_watchlist = False
+    if current_user.is_authenticated:
+        watchlist_item = UserWatchlist.query.filter_by(
+            user_id=current_user.id,
+            content_id=content_item.id
+        ).first()
+        in_watchlist = watchlist_item is not None
+    
+    # Get user's rating
+    user_rating = None
+    if current_user.is_authenticated:
+        rating = ContentRating.query.filter_by(
+            user_id=current_user.id,
+            content_id=content_item.id
+        ).first()
+        if rating:
+            user_rating = rating.rating
+    
+    # Get average rating
+    ratings = ContentRating.query.filter_by(content_id=content_item.id).all()
+    avg_rating = sum(r.rating for r in ratings) / len(ratings) if ratings else None
+    
+    # Get similar content
+    similar_content = get_similar_content(content_item, limit=5)
+    
+    return render_template('content/detail.html',
+                         content=content_item,
+                         in_watchlist=in_watchlist,
+                         user_rating=user_rating,
+                         avg_rating=avg_rating,
+                         total_ratings=len(ratings),
+                         similar_content=similar_content)
+
 # Helper functions
 def get_unique_genres():
     """Get all unique genres from content"""

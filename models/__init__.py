@@ -5,6 +5,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import re
 import json
 
+# Import recommendation models
+from .recommendations import (
+    UserPreferenceProfile, GroupPreferenceProfile, Recommendation,
+    RecommendationFeedback, RecommendationHistory, ABTestExperiment
+)
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
@@ -935,6 +941,7 @@ class UserWatchlist(db.Model):
     
     # Relationships
     user = db.relationship('User', backref='watchlist_items')
+    content = db.relationship('Content', backref='user_watchlist_items', overlaps="content_ref,user_watchlists")
     
     # Unique constraint
     __table_args__ = (db.UniqueConstraint('user_id', 'content_id', name='unique_user_content'),)
