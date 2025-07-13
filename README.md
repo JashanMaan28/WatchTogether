@@ -318,3 +318,11 @@ For bug reports, ideas, or help:
 ---
 
 **WatchTogether** — Making movie nights better, *together*! 🍿✨
+
+<div align="center">
+
+**Made with ❤️ by [Jashan](https://jashanpreetsingh.tech)**
+
+*For entertainment, and fun!*
+
+[![GitHub](https://img.shields.io/badge/GitHub-Follow-black?style=social&logo=github)](https://github.com/JashanMaan28)
