@@ -3,36 +3,71 @@
 {% block title %}About - WatchTogether{% endblock %}
 
 {% block content %}
-<div class="row">
+<div class="row justify-content-center align-items-center min-vh-80">
     <div class="col-lg-8 mx-auto">
-        <h1 class="mb-4">About WatchTogether</h1>
-        
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Our Mission</h5>
-                <p class="card-text">
-                    WatchTogether is a social entertainment platform designed to bring people closer through shared viewing experiences. 
-                    In an increasingly connected world, we believe that entertainment is better when shared with others.
+        <h1 class="mb-4 text-center fw-bold" style="letter-spacing: 1px;">About <span class="text-primary">WatchTogether</span></h1>
+        <div class="card shadow-lg border-0 bg-dark text-light">
+            <div class="card-body p-4">
+                <h4 class="card-title mb-3 text-accent">Our Mission</h4>
+                <p class="card-text lead">
+                    <strong>WatchTogether</strong> is a social entertainment platform designed to bring people closer through shared viewing experiences. 
+                    In an increasingly connected world, we believe that entertainment is better when shared with others. Our mission is to make every movie night, binge session, and group watch memorable and fun.
                 </p>
-                
-                <h5 class="card-title mt-4">Features</h5>
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item d-flex align-items-center">
-                        <i class="fas fa-check text-success me-2"></i>
-                        User-friendly interface and easy setup
+
+                <h4 class="card-title mt-4 mb-3 text-accent">Key Features</h4>
+                <ul class="list-group list-group-flush mb-4">
+                    <li class="list-group-item bg-transparent text-light d-flex align-items-center border-0">
+                        <i class="fas fa-users text-success me-2"></i>
+                        Social watch parties with friends and groups
                     </li>
-                    <li class="list-group-item d-flex align-items-center">
-                        <i class="fas fa-check text-success me-2"></i>
-                        others added soon...
+                    <li class="list-group-item bg-transparent text-light d-flex align-items-center border-0">
+                        <i class="fas fa-comments text-info me-2"></i>
+                        Real-time chat and discussions
+                    </li>
+                    <li class="list-group-item bg-transparent text-light d-flex align-items-center border-0">
+                        <i class="fas fa-star text-warning me-2"></i>
+                        Personalized recommendations and ratings
+                    </li>
+                    <li class="list-group-item bg-transparent text-light d-flex align-items-center border-0">
+                        <i class="fas fa-list text-primary me-2"></i>
+                        Collaborative watchlists and proposals
+                    </li>
+                    <li class="list-group-item bg-transparent text-light d-flex align-items-center border-0">
+                        <i class="fas fa-bolt text-danger me-2"></i>
+                        Modern, fast, and mobile-friendly UI
                     </li>
                 </ul>
-                
-                <h5 class="card-title mt-4">Get Started</h5>
+
+                <h4 class="card-title mt-4 mb-3 text-accent">Meet the Tech</h4>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4 text-center">
+                        <i class="fab fa-python fa-2x text-warning mb-2"></i>
+                        <div>Flask Backend</div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <i class="fab fa-bootstrap fa-2x text-primary mb-2"></i>
+                        <div>Bootstrap 5 UI</div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <i class="fas fa-cloud fa-2x text-info mb-2"></i>
+                        <div>Cloud &amp; Database</div>
+                    </div>
+                </div>
+
+                <h4 class="card-title mt-4 mb-3 text-accent">Get Started</h4>
                 <p class="card-text">
-                    Ready to start watching? <a href="{{ url_for('auth.register') }}">Create an account</a> 
+                    Ready to start watching? <a href="{{ url_for('auth.register') }}" class="link-primary">Create an account</a> 
                     and invite your friends to join you for an amazing experience!
                 </p>
+                <div class="text-center mt-4">
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-lg btn-primary px-5 shadow-sm">
+                        <i class="fas fa-user-plus me-2"></i>Join Now
+                    </a>
+                </div>
             </div>
+        </div>
+        <div class="text-center mt-5 text-muted small">
+            &copy; {{ 2025 }} WatchTogether. Made with <i class="fas fa-heart text-danger"></i> for movie lovers.
         </div>
     </div>
 </div>

@@ -1,11 +1,13 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, abort
+from flask import Blueprint
+
+groups = Blueprint('groups', __name__)
+
+from flask import render_template, request, flash, redirect, url_for, jsonify, abort
 from flask_login import login_required, current_user
 from app import db
 from models import Group, GroupMember, User
 from forms import CreateGroupForm, EditGroupForm, JoinGroupForm, LeaveGroupForm, SearchGroupsForm, ManageMemberForm, DeleteGroupForm
 from datetime import datetime
-
-groups = Blueprint('groups', __name__)
 
 @groups.route('/groups')
 def discover_groups():
@@ -430,3 +432,90 @@ def my_groups():
     return render_template('groups/my_groups.html',
                          admin_groups=admin_groups,
                          member_groups=member_groups)
+
+@groups.route('/groups/user-groups')
+@login_required
+def user_groups():
+    """Return a JSON list of groups the user is a member of."""
+    groups_ = Group.query.join(GroupMember).filter(GroupMember.user_id == current_user.id).all()
+    return jsonify({
+        'groups': [
+            {'id': g.id, 'name': g.name} for g in groups_
+        ]
+    })
+
+@groups.route('/groups/<int:group_id>/add_from_tmdb', methods=['POST'])
+@login_required
+def add_from_tmdb_to_group(group_id):
+    """Add content from TMDB to a group watchlist (AJAX endpoint)."""
+    from models import Content, GroupWatchlist, GroupMember
+    from app import db
+    from utils.tmdb_api import TMDBService
+    import json, logging
+    import os
+    # Setup logging
+    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs', 'recommendations.log')
+    logging.basicConfig(filename=log_path, level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+    try:
+        logging.info(f"[add_from_tmdb_to_group] group_id={group_id}, user_id={current_user.id}, data={request.get_json()}")
+        group = Group.query.get_or_404(group_id)
+        if not group.is_member(current_user.id):
+            logging.warning(f"User {current_user.id} is not a member of group {group_id}")
+            return jsonify({'error': 'You must be a member of this group.'}), 403
+        data = request.get_json()
+        tmdb_id = data.get('tmdb_id')
+        content_type = data.get('content_type', 'movie')
+        if not tmdb_id:
+            logging.error("TMDB ID missing in request data")
+            return jsonify({'error': 'TMDB ID required'}), 400
+        # Get or create local content
+        local_content = Content.query.filter_by(tmdb_id=tmdb_id).first()
+        if not local_content:
+            tmdb = TMDBService()
+            content_details = tmdb.get_content_details(tmdb_id, content_type)
+            logging.info(f"TMDB fetch for tmdb_id={tmdb_id}, content_type={content_type}: {content_details}")
+            if not content_details:
+                logging.error(f"Content not found in TMDB for tmdb_id={tmdb_id}")
+                return jsonify({'error': 'Content not found in TMDB'}), 404
+            local_content = Content(
+                title=content_details['title'],
+                description=content_details['description'],
+                type=content_details['type'],
+                genre=', '.join(content_details.get('genres', [])),
+                year=content_details.get('year'),
+                rating=content_details.get('rating'),
+                duration=content_details.get('duration'),
+                poster_url=content_details.get('poster_url'),
+                backdrop_url=content_details.get('backdrop_url'),
+                trailer_url=content_details.get('trailer_url'),
+                tmdb_id=tmdb_id,
+                imdb_id=content_details.get('imdb_id'),
+                director=content_details.get('director'),
+                cast=', '.join(content_details.get('cast', [])),
+                country=content_details.get('country'),
+                language=content_details.get('language'),
+                status='active'
+            )
+            db.session.add(local_content)
+            db.session.flush()
+        # Check if already in group watchlist
+        existing = GroupWatchlist.query.filter_by(group_id=group_id, content_id=local_content.id).first()
+        if existing:
+            logging.info(f"Content {local_content.id} already in group {group_id} watchlist")
+            return jsonify({'success': True, 'message': 'Already in group watchlist.'})
+        # Add to group watchlist
+        watchlist_item = GroupWatchlist(
+            group_id=group_id,
+            content_id=local_content.id,
+            added_by=current_user.id,
+            status='want_to_watch',
+            priority='medium'
+        )
+        db.session.add(watchlist_item)
+        db.session.commit()
+        logging.info(f"Added content {local_content.id} to group {group_id} by user {current_user.id}")
+        return jsonify({'success': True, 'message': 'Added to group watchlist.'})
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Exception in add_from_tmdb_to_group: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Internal error: {str(e)}'}), 500

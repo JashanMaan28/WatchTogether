@@ -3,73 +3,169 @@
 {% block title %}Welcome to WatchTogether{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-lg-8 mx-auto text-center">
-        <!-- Hero Section -->
-        <div class="jumbotron bg-primary text-white rounded p-5 mb-5">
-            <h1 class="display-4">Hello World!</h1>
-            <h2 class="display-5">Welcome to WatchTogether</h2>
-            <p class="lead">The ultimate social entertainment platform where friends come together to share, and enjoy content.</p>
-            <hr class="my-4" style="border-color: rgba(255,255,255,0.3);">
-            <p>Invite friends, and experience movies and shows together!</p>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Hero Section -->
+            <section class="text-center mb-5 fade-in">
+                <h1 class="display-3 fw-bold mb-3 text-gradient">
+                    <i class="fas fa-users me-3"></i>Welcome to <span class="text-primary">WatchTogether</span>
+                </h1>
+                <p class="lead mb-4 text-secondary">
+                    Discover, discuss, and enjoy movies and TV shows with friends.<br>
+                    Create groups, share recommendations, and never wonder "what to watch" again.
+                </p>
+                {% if not current_user.is_authenticated %}
+                <div class="d-flex gap-3 justify-content-center flex-wrap mb-4">
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg px-4 shadow-sm">
+                        <i class="bi bi-person-plus me-2"></i>Get Started
+                    </a>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-lg px-4">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                    </a>
+                </div>
+                {% else %}
+                <div class="d-flex gap-3 justify-content-center flex-wrap mb-4">
+                    <a href="{{ url_for('content.index') }}" class="btn btn-primary btn-lg px-4 shadow-sm">
+                        <i class="bi bi-film me-2"></i>Browse Content
+                    </a>
+                    <a href="{{ url_for('groups.my_groups') }}" class="btn btn-outline-primary btn-lg px-4">
+                        <i class="bi bi-people me-2"></i>My Groups
+                    </a>
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- Features Section -->
+            <section class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="card feature-card h-100 text-center border-0 shadow-sm bg-dark text-light">
+                        <div class="card-body">
+                            <i class="feature-icon fas fa-users mb-3 text-primary fs-1"></i>
+                            <h5 class="card-title">Create Groups</h5>
+                            <p class="card-text">
+                                Form watch groups with friends and family. Plan movie nights, 
+                                share recommendations, and discuss your favorite shows together.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card feature-card h-100 text-center border-0 shadow-sm bg-dark text-light">
+                        <div class="card-body">
+                            <i class="feature-icon fas fa-heart mb-3 text-danger fs-1"></i>
+                            <h5 class="card-title">Smart Recommendations</h5>
+                            <p class="card-text">
+                                Get personalized suggestions based on your taste and social 
+                                connections. Discover hidden gems recommended by friends.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card feature-card h-100 text-center border-0 shadow-sm bg-dark text-light">
+                        <div class="card-body">
+                            <i class="feature-icon fas fa-comments mb-3 text-info fs-1"></i>
+                            <h5 class="card-title">Rich Discussions</h5>
+                            <p class="card-text">
+                                Share thoughts, reviews, and theories. Engage in spoiler-free 
+                                discussions and connect with fellow entertainment enthusiasts.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Secondary Features -->
+            <section class="row g-4 mb-5">
+                <div class="col-md-6">
+                    <div class="card feature-card h-100 border-0 shadow-sm bg-dark text-light">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="feature-icon fas fa-list-alt me-3 fs-2 text-warning"></i>
+                                <h5 class="card-title mb-0">Personal Watchlists</h5>
+                            </div>
+                            <p class="card-text">
+                                Keep track of what you want to watch, what you're currently watching, 
+                                and rate what you've completed. Share your lists with friends.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card feature-card h-100 border-0 shadow-sm bg-dark text-light">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="feature-icon fas fa-chart-line me-3 fs-2 text-success"></i>
+                                <h5 class="card-title mb-0">Social Analytics</h5>
+                            </div>
+                            <p class="card-text">
+                                See trending content in your network, track group preferences, 
+                                and get insights into what your friends are watching.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Call to Action / Dashboard Preview -->
             {% if not current_user.is_authenticated %}
-                <a class="btn btn-light btn-lg me-3" href="{{ url_for('auth.register') }}" role="button">Get Started</a>
-                <a class="btn btn-outline-light btn-lg" href="{{ url_for('auth.login') }}" role="button">Sign In</a>
+            <section class="card bg-gradient text-white text-center p-4 mb-5 hover-glow border-0 shadow-lg" style="background: linear-gradient(135deg, #232526 0%, #414345 100%);">
+                <div class="card-body">
+                    <h3 class="card-title mb-3">Ready to Get Started?</h3>
+                    <p class="card-text mb-4">
+                        Join thousands of users who have discovered their next favorite show through WatchTogether.
+                    </p>
+                    <div class="d-flex gap-3 justify-content-center flex-wrap">
+                        <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg px-4">
+                            <i class="bi bi-person-plus me-2"></i>Create Account
+                        </a>
+                        <a href="{{ url_for('content.search') }}" class="btn btn-outline-light btn-lg px-4">
+                            <i class="bi bi-eye me-2"></i>Browse Content
+                        </a>
+                    </div>
+                </div>
+            </section>
             {% else %}
-                <a class="btn btn-light btn-lg" href="{{ url_for('main.index') }}" role="button">Explore ...</a>
+            <!-- Authenticated User Dashboard Preview -->
+            <section class="row g-4">
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm bg-dark text-light hover-lift">
+                        <div class="card-header bg-transparent border-0">
+                            <h6 class="mb-0">
+                                <i class="bi bi-clock-history me-2"></i>Recent Activity
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">Stay updated with your social watching activity</p>
+                            <a href="{{ url_for('recommendations.index') }}" class="btn btn-primary">
+                                <i class="bi bi-arrow-right me-1"></i>View Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm bg-dark text-light hover-lift">
+                        <div class="card-header bg-transparent border-0">
+                            <h6 class="mb-0">
+                                <i class="bi bi-lightbulb me-2"></i>Quick Actions
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('groups.create_group') }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-plus-circle me-1"></i>Create Group
+                                </a>
+                                <a href="{{ url_for('auth.search_users') }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-person-plus me-1"></i>Find Friends
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
             {% endif %}
         </div>
-
-        <!-- Features Section -->
-        <div class="row g-4">
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="card-body text-center">
-                        <div class="feature-icon bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
-                            <i class="fas fa-users fa-lg"></i>
-                        </div>
-                        <h5 class="card-title">WatchTogether</h5>
-                        <p class="card-text">...</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="card-body text-center">
-                        <div class="feature-icon bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
-                            <i class="fas fa-comments fa-lg"></i>
-                        </div>
-                        <h5 class="card-title">Live Chat</h5>
-                        <p class="card-text">Chat with your friends ...</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="card-body text-center">
-                        <div class="feature-icon bg-info text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
-                            <i class="fas fa-play fa-lg"></i>
-                        </div>
-                        <h5 class="card-title">Easy Setup</h5>
-                        <p class="card-text">Create a group, share the link, suggest and watch. It's that simple!</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Call to Action -->
-        {% if not current_user.is_authenticated %}
-        <div class="mt-5 p-4 bg-light rounded">
-            <h3>Ready to start watching?</h3>
-            <p class="mb-3">Join your friends who are already enjoying similar entertainment experiences.</p>
-            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Create Your Account</a>
-        </div>
-        {% endif %}
     </div>
 </div>
-
-<!-- Font Awesome for icons -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 {% endblock %}

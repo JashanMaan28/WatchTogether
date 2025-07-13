@@ -38,17 +38,17 @@
                         <!-- Existing Content Section -->
                         <div id="existing-content-section" style="display: none;">
                             <div class="mb-3">
-                                {{ form.existing_content_id.label(class="form-label") }}
-                                <div class="input-group">
-                                    {{ form.existing_content_id(class="form-control", readonly=True) }}
-                                    <button type="button" class="btn btn-outline-secondary" id="browse-content">
-                                        Browse Content
-                                    </button>
-                                </div>
+                                <label for="existing-content-id" class="form-label">Select from Your Watchlist</label>
+                                <select name="existing_content_id" id="existing-content-id" class="form-select">
+                                    <option value="">-- Select a movie or show --</option>
+                                    {% for content in watchlist_content %}
+                                        <option value="{{ content.id }}">{{ content.title }}{% if content.year %} ({{ content.year }}){% endif %}</option>
+                                    {% endfor %}
+                                </select>
                                 {% for error in form.existing_content_id.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
                                 {% endfor %}
-                                <div class="form-text">Search and select existing content from our database.</div>
+                                <div class="form-text">Choose a movie or show from your personal watchlist.</div>
                             </div>
                         </div>
 

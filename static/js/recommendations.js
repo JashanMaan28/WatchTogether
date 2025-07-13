@@ -112,7 +112,7 @@ class RecommendationSystem {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-Token': csrfToken.getAttribute('content')
+                    'X-CSRFToken': csrfToken.getAttribute('content')
                 },
                 body: JSON.stringify({
                     recommendation_id: parseInt(recommendationId),
@@ -209,7 +209,7 @@ class RecommendationSystem {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-Token': csrfToken.getAttribute('content')
+                    'X-CSRFToken': csrfToken.getAttribute('content')
                 },
                 body: JSON.stringify({
                     recommendation_id: parseInt(recommendationId),

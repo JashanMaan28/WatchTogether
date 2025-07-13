@@ -353,22 +353,23 @@ def api_send_friend_request():
 def api_accept_friend_request():
     """API endpoint to accept friend request"""
     try:
-        data = request.get_json()
+        data = request.get_json(force=True)
+        current_app.logger.info(f"Friend request accept API called with data: {data}")
         user_id = data.get('user_id')
-        
         if not user_id:
-            return jsonify({'success': False, 'message': 'User ID is required'})
-        
+            current_app.logger.error("No user_id provided in request data")
+            return jsonify({'success': False, 'message': 'User ID is required'}), 400
         user = User.query.get(user_id)
         if not user:
-            return jsonify({'success': False, 'message': 'User not found'})
-        
+            current_app.logger.error(f"User not found for user_id: {user_id}")
+            return jsonify({'success': False, 'message': 'User not found'}), 404
         success, message = current_user.accept_friend_request(user)
+        current_app.logger.info(f"Accept friend request result: success={success}, message={message}")
         return jsonify({'success': success, 'message': message})
-        
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'})
+        current_app.logger.error(f"Exception in accept friend request: {str(e)}")
+        return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'}), 500
 
 @auth.route('/api/friend-request/decline', methods=['POST'])
 @login_required

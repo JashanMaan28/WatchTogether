@@ -718,7 +718,7 @@ class ContentProposalForm(FlaskForm):
     ], validators=[DataRequired()])
     
     # For existing content
-    existing_content_id = IntegerField('Content ID', validators=[Optional()])
+    existing_content_id = SelectField('Content', choices=[], coerce=str, validators=[Optional()])
     
     # For new content
     title = StringField('Title', validators=[

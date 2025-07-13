@@ -87,7 +87,8 @@ class NotificationManager {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': csrfToken
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(data),
+            credentials: 'same-origin'
         });
 
         if (!response.ok) {
@@ -120,6 +121,7 @@ class NotificationManager {
                 this.showToast(`✅ Accepted friend request from ${userName}!`, 'success');
                 this.removeNotificationActions(notificationId);
                 this.markNotificationAsRead(notificationId);
+                this.hideLoading(); // Hide modal after actions removed
             } else {
                 throw new Error(result.message || 'Failed to accept friend request');
             }
@@ -128,7 +130,6 @@ class NotificationManager {
             this.showToast(`❌ Error: ${error.message}`, 'danger');
             button.disabled = false;
             button.innerHTML = originalText;
-        } finally {
             this.hideLoading();
         }
     }
@@ -156,6 +157,7 @@ class NotificationManager {
                 this.showToast(`Declined friend request from ${userName}`, 'info');
                 this.removeNotificationActions(notificationId);
                 this.markNotificationAsRead(notificationId);
+                this.hideLoading(); // Hide modal after actions removed
             } else {
                 throw new Error(result.message || 'Failed to decline friend request');
             }
@@ -164,7 +166,6 @@ class NotificationManager {
             this.showToast(`❌ Error: ${error.message}`, 'danger');
             button.disabled = false;
             button.innerHTML = originalText;
-        } finally {
             this.hideLoading();
         }
     }

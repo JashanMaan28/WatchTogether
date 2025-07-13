@@ -125,7 +125,14 @@ def create_proposal(group_id):
     if member.role not in ['admin', 'moderator']:
         pass  # Allow all members for now
     
+
+    # Fetch user's watchlist content for selection
+    watchlist_content = current_user.get_watchlist_content(only_status='want_to_watch')
+
+    # Prepare choices for SelectField: (id, title)
+    watchlist_choices = [(str(c.id), f"{c.title} ({c.year})" if c.year else c.title) for c in watchlist_content]
     form = ContentProposalForm()
+    form.existing_content_id.choices = [('', '-- Select a movie or show --')] + watchlist_choices
     
     if form.validate_on_submit():
         try:
@@ -142,12 +149,16 @@ def create_proposal(group_id):
             
             if form.content_type_choice.data == 'existing':
                 if form.existing_content_id.data:
-                    content = Content.query.get(form.existing_content_id.data)
+                    try:
+                        content_id = int(form.existing_content_id.data)
+                        content = Content.query.get(content_id)
+                    except (ValueError, TypeError):
+                        content = None
                     if content:
                         proposal.content_id = content.id
                     else:
                         flash('Selected content not found.', 'error')
-                        return render_template('proposals/create_proposal.html', form=form, group=group)
+                        return render_template('proposals/create_proposal.html', form=form, group=group, watchlist_content=watchlist_content)
             else:
                 # New content - store details in proposal
                 proposal.title = form.title.data
@@ -182,7 +193,7 @@ def create_proposal(group_id):
             db.session.rollback()
             flash('An error occurred while creating the proposal. Please try again.', 'error')
     
-    return render_template('proposals/create_proposal.html', form=form, group=group)
+    return render_template('proposals/create_proposal.html', form=form, group=group, watchlist_content=watchlist_content)
 
 
 @proposals_bp.route('/proposals/<int:proposal_id>')

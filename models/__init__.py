@@ -451,6 +451,15 @@ class User(UserMixin, db.Model):
             'rating_5_count': stats.rating_5_count,
         }
 
+    def get_watchlist_content(self, only_status=None):
+        """Return a list of Content objects from the user's watchlist. Optionally filter by status (e.g., 'want_to_watch')."""
+        from models import UserWatchlist  # Avoid circular import
+        query = UserWatchlist.query.filter_by(user_id=self.id)
+        if only_status:
+            query = query.filter_by(status=only_status)
+        watchlist_items = query.all()
+        return [item.content for item in watchlist_items if item.content is not None]
+
 
 class Friendship(db.Model):
     """Friendship model to handle friend relationships"""

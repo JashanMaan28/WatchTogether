@@ -52,6 +52,9 @@
         display: flex;
         gap: 1rem;
         margin-top: 2rem;
+        position: relative;
+        z-index: 10;
+    }
     }
     
     .btn-watchlist {
@@ -67,6 +70,8 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        z-index: 20;
+        pointer-events: auto;
     }
     
     .btn-watchlist:hover {
@@ -321,11 +326,12 @@
                     {% endif %}
                     
                     <div class="action-buttons">
-                        <button class="btn-watchlist {% if watchlist_status %}in-list{% endif %}" 
+                        <button class="btn-watchlist {% if watchlist_status %}in-list{% endif %}"
                                 data-tmdb-id="{{ content.tmdb_id }}"
                                 data-content-type="{{ content.content_type }}"
                                 data-status="{{ watchlist_status or 'none' }}"
-                                data-authenticated="{{ current_user.is_authenticated|lower }}">
+                                data-authenticated="{{ current_user.is_authenticated|lower }}"
+                                type="button">
                             {% if current_user.is_authenticated %}
                                 {% if watchlist_status == 'want_to_watch' %}
                                     <i class="fas fa-bookmark"></i> In Watchlist
@@ -711,72 +717,5 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Watchlist functionality
-    const watchlistBtn = document.querySelector('.btn-watchlist');
-    if (watchlistBtn) {
-        watchlistBtn.addEventListener('click', function() {
-            const tmdbId = this.dataset.tmdbId;
-            const contentType = this.dataset.contentType;
-            const currentStatus = this.dataset.status;
-            const isAuthenticated = this.dataset.authenticated === 'true';
-            
-            // If user is not authenticated, show login prompt
-            if (!isAuthenticated) {
-                showLoginPrompt();
-                return;
-            }
-            
-            // If not in watchlist, add it
-            if (currentStatus === 'none') {
-                addToWatchlist(tmdbId, contentType, 'want_to_watch');
-            } else {
-                // If already in watchlist, redirect to watchlist page
-                window.location.href = '{{ url_for("watchlist.my_watchlist") }}';
-            }
-        });
-    }
-    
-    // Function to add to watchlist
-    function addToWatchlist(tmdbId, contentType, status) {
-        fetch('{{ url_for("content.toggle_watchlist") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                tmdb_id: tmdbId,
-                content_type: contentType,
-                status: status
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Error: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error adding to watchlist');
-        });
-    }
-    
-    // Function to show login prompt for non-authenticated users
-    function showLoginPrompt() {
-        const contentTitle = '{{ content.title }}';
-        const message = `Sign up or log in to add "${contentTitle}" to your watchlist!`;
-        
-        if (confirm(message + '\n\nClick OK to go to login page, Cancel to register.')) {
-            window.location.href = '{{ url_for("auth.login") }}';
-        } else {
-            window.location.href = '{{ url_for("auth.register") }}';
-        }
-    }
-});
-</script>
+<script src="/static/js/watchlist_add.js"></script>
 {% endblock %}
