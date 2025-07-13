@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Social Trending{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-fire text-warning me-2"></i>
+                    Trending Content
+                </h1>
+                <div class="btn-group">
+                    <a href="{{ url_for('recommendations.social_trending', scope='friends') }}" 
+                       class="btn {% if scope == 'friends' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                        <i class="fas fa-user-friends me-1"></i>Friends
+                    </a>
+                    <a href="{{ url_for('recommendations.social_trending', scope='groups') }}" 
+                       class="btn {% if scope == 'groups' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                        <i class="fas fa-users me-1"></i>Groups
+                    </a>
+                    <a href="{{ url_for('recommendations.social_trending', scope='global') }}" 
+                       class="btn {% if scope == 'global' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                        <i class="fas fa-globe me-1"></i>Global
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if trending_content %}
+    <div class="row">
+        {% for trending in trending_content %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100">
+                {% if trending.content.poster_url %}
+                <img src="{{ trending.content.poster_url }}" 
+                     class="card-img-top" 
+                     style="height: 200px; object-fit: cover;"
+                     alt="{{ trending.content.title }}">
+                {% endif %}
+                
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title mb-0">{{ trending.content.title }}</h5>
+                        <span class="badge bg-warning text-dark">
+                            <i class="fas fa-fire me-1"></i>{{ "%.1f"|format(trending.trending_score) }}
+                        </span>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <span class="badge bg-primary">{{ trending.content.type }}</span>
+                        {% if trending.content.year %}
+                        <span class="badge bg-secondary">{{ trending.content.year }}</span>
+                        {% endif %}
+                        {% if trending.scope == 'group' and trending.group %}
+                        <span class="badge bg-info">{{ trending.group.name }}</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="text-muted small">Viewers</div>
+                            <div class="fw-bold">{{ trending.unique_viewers }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-muted small">Ratings</div>
+                            <div class="fw-bold">{{ trending.total_ratings }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-muted small">Avg Rating</div>
+                            <div class="fw-bold">
+                                {% if trending.average_rating %}
+                                {{ "%.1f"|format(trending.average_rating) }}/5
+                                {% else %}
+                                N/A
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if trending.content.description %}
+                    <p class="card-text text-muted small">{{ trending.content.description[:100] }}...</p>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            {{ trending.calculated_at.strftime('%b %d') }}
+                        </small>
+                        <a href="{{ url_for('content.detail', tmdb_id=trending.content.tmdb_id, content_type=trending.content.type) if trending.content.tmdb_id else '#' }}" 
+                           class="btn btn-outline-warning btn-sm">
+                            <i class="fas fa-eye me-1"></i>View
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col-12 text-center py-5">
+            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+            <h3 class="text-muted">No Trending Content</h3>
+            <p class="text-muted mb-4">
+                {% if scope == 'friends' %}
+                No trending content in your friend circle yet.
+                {% elif scope == 'groups' %}
+                No trending content in your groups yet.
+                {% else %}
+                No globally trending content at the moment.
+                {% endif %}
+            </p>
+            <div class="d-flex justify-content-center gap-2">
+                <a href="{{ url_for('recommendations.index') }}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Recommendations
+                </a>
+                {% if scope == 'friends' %}
+                <a href="{{ url_for('auth.search_users') }}" class="btn btn-outline-success">
+                    <i class="fas fa-user-plus me-1"></i>Find Friends
+                </a>
+                {% elif scope == 'groups' %}
+                <a href="{{ url_for('groups.discover_groups') }}" class="btn btn-outline-info">
+                    <i class="fas fa-search me-1"></i>Discover Groups
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

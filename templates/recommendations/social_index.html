@@ -192,18 +192,14 @@
                                    class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-eye me-1"></i>View
                                 </a>
-                                <form method="POST" action="{{ url_for('recommendations.respond_to_friend_recommendation', recommendation_id=friend_rec.id) }}" style="display: inline;">
-                                    <input type="hidden" name="response_type" value="like">
-                                    <button type="submit" class="btn btn-success btn-sm">
-                                        <i class="fas fa-thumbs-up me-1"></i>Like
-                                    </button>
-                                </form>
-                                <form method="POST" action="{{ url_for('recommendations.respond_to_friend_recommendation', recommendation_id=friend_rec.id) }}" style="display: inline;">
-                                    <input type="hidden" name="response_type" value="dismiss">
-                                    <button type="submit" class="btn btn-outline-secondary btn-sm">
-                                        <i class="fas fa-times me-1"></i>Dismiss
-                                    </button>
-                                </form>
+                                <button class="btn btn-success btn-sm" 
+                                        onclick="respondToFriendRecommendation({{ friend_rec.id }}, 'like')">
+                                    <i class="fas fa-thumbs-up me-1"></i>Like
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" 
+                                        onclick="respondToFriendRecommendation({{ friend_rec.id }}, 'dismiss')">
+                                    <i class="fas fa-times me-1"></i>Dismiss
+                                </button>
                             </div>
                         </div>
                         
@@ -322,9 +318,14 @@
                             <div class="mt-auto">
                                 <div class="btn-group w-100 mb-2">
                                     <a href="{{ url_for('content.detail', tmdb_id=recommendation.content.tmdb_id, content_type=recommendation.content.type) if recommendation.content.tmdb_id else '#' }}" 
-                                       class="btn btn-outline-primary btn-sm">
+                                       class="btn btn-outline-primary btn-sm"
+                                       onclick="trackRecommendationClick({{ recommendation.id }})">
                                         <i class="fas fa-eye me-1"></i>View
                                     </a>
+                                    <button class="btn btn-outline-success btn-sm" 
+                                            onclick="addToWatchlist({{ recommendation.content.id }})">
+                                        <i class="fas fa-plus me-1"></i>Watchlist
+                                    </button>
                                     <div class="dropdown">
                                         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                             <i class="fas fa-share-alt"></i>
@@ -350,10 +351,10 @@
                                             onclick="submitFeedback({{ recommendation.id }}, 'dislike')">
                                         <i class="fas fa-thumbs-down me-1"></i>Dislike
                                     </button>
-                                    <a href="{{ url_for('recommendations.dismiss_recommendation', recommendation_id=recommendation.id) }}" 
-                                       class="btn btn-outline-secondary btn-sm">
+                                    <button class="btn btn-outline-secondary btn-sm" 
+                                            onclick="dismissRecommendation({{ recommendation.id }})">
                                         <i class="fas fa-times me-1"></i>Dismiss
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -432,13 +433,119 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Friend Recommendation Response Modal -->
+<div class="modal fade" id="friendResponseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Respond to Recommendation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="friendResponseForm" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="rating" class="form-label">Your Rating (optional)</label>
+                        <select class="form-select" id="rating" name="rating">
+                            <option value="">Select rating...</option>
+                            <option value="1">1 - Poor</option>
+                            <option value="2">2 - Fair</option>
+                            <option value="3">3 - Good</option>
+                            <option value="4">4 - Very Good</option>
+                            <option value="5">5 - Excellent</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="comment" class="form-label">Comment (optional)</label>
+                        <textarea class="form-control" id="comment" name="comment" rows="3" 
+                                placeholder="Share your thoughts..."></textarea>
+                    </div>
+                    <input type="hidden" id="response_type" name="response_type">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Response</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/recommendations.js') }}"></script>
 <script>
-// Simple delegation - the RecommendationSystem will be initialized automatically
-// when the JS file loads via its DOMContentLoaded event handler
+// Track recommendation clicks
+function trackRecommendationClick(recommendationId) {
+    fetch(`/recommendations/click/${recommendationId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        }
+    }).catch(console.error);
+}
+
+// Track recommendation clicks - already defined in recommendations.js
+// Submit recommendation feedback - already defined in recommendations.js
+
+// Dismiss recommendation
+function dismissRecommendation(recommendationId) {
+    if (confirm('Are you sure you want to dismiss this recommendation?')) {
+        window.location.href = `/recommendations/dismiss/${recommendationId}`;
+    }
+}
+
+// Respond to friend recommendation
+function respondToFriendRecommendation(recommendationId, responseType) {
+    if (responseType === 'like' || responseType === 'dismiss') {
+        // Simple response
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/recommendations/friend/respond/${recommendationId}`;
+        
+        const responseInput = document.createElement('input');
+        responseInput.type = 'hidden';
+        responseInput.name = 'response_type';
+        responseInput.value = responseType;
+        form.appendChild(responseInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    } else {
+        // Show modal for detailed response
+        document.getElementById('response_type').value = responseType;
+        document.getElementById('friendResponseForm').action = `/recommendations/friend/respond/${recommendationId}`;
+        new bootstrap.Modal(document.getElementById('friendResponseModal')).show();
+    }
+}
+
+// Add to watchlist
+function addToWatchlist(contentId) {
+    fetch('/watchlist/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            content_id: contentId,
+            status: 'want_to_watch'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Added to watchlist!', 'success');
+        } else {
+            showToast('Error adding to watchlist', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error adding to watchlist', 'error');
+    });
+}
 
 // Show toast notification
 function showToast(message, type = 'info') {

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Create Group Session - {{ group.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-users text-primary me-2"></i>
+                        Create Recommendation Session
+                    </h4>
+                    <small class="text-muted">for {{ group.name }}</small>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Session Title *</label>
+                            <input type="text" class="form-control" id="title" name="title" required
+                                   placeholder="e.g., Friday Movie Night Picks">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"
+                                    placeholder="Describe what this session is about..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="session_type" class="form-label">Session Type</label>
+                            <select class="form-select" id="session_type" name="session_type">
+                                <option value="collaborative">Collaborative - Members suggest and discuss</option>
+                                <option value="voting">Voting - Members vote on pre-selected options</option>
+                                <option value="tournament">Tournament - Bracket-style elimination</option>
+                            </select>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="voting_duration" class="form-label">Voting Duration (hours)</label>
+                                    <input type="number" class="form-control" id="voting_duration" name="voting_duration" 
+                                           value="24" min="1" max="168">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="min_consensus_percentage" class="form-label">Consensus Threshold</label>
+                                    <select class="form-select" id="min_consensus_percentage" name="min_consensus_percentage">
+                                        <option value="0.3">30% - Low consensus</option>
+                                        <option value="0.5">50% - Moderate consensus</option>
+                                        <option value="0.6" selected>60% - High consensus</option>
+                                        <option value="0.8">80% - Very high consensus</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="require_consensus" name="require_consensus">
+                                <label class="form-check-label" for="require_consensus">
+                                    Require consensus to finalize recommendations
+                                </label>
+                                <div class="form-text">If enabled, the session won't complete until the consensus threshold is met.</div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle me-2"></i>How it works:</h6>
+                            <ul class="mb-0">
+                                <li><strong>Collaborative:</strong> Members suggest content and discuss recommendations</li>
+                                <li><strong>Voting:</strong> Vote on a curated list of content options</li>
+                                <li><strong>Tournament:</strong> Bracket-style voting to find the group favorite</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('groups.view', id=group.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Group
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus me-1"></i>Create Session
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

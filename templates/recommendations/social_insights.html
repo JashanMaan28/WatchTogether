@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Social Insights{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-lightbulb text-info me-2"></i>
+                    Social Recommendation Insights
+                </h1>
+                <a href="{{ url_for('recommendations.index') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Recommendations
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if insights %}
+    <div class="row">
+        {% for insight in insights %}
+        <div class="col-lg-6 col-xl-4 mb-4">
+            <div class="card h-100 {% if insight.importance_score >= 0.8 %}border-warning{% elif insight.importance_score >= 0.6 %}border-info{% endif %}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-{{ 'warning' if insight.importance_score >= 0.8 else 'info' if insight.importance_score >= 0.6 else 'secondary' }}">
+                            {{ insight.insight_type.replace('_', ' ').title() }}
+                        </span>
+                        <span class="badge bg-light text-dark ms-1">
+                            Score: {{ "%.1f"|format(insight.importance_score) }}
+                        </span>
+                    </div>
+                    {% if insight.status == 'active' %}
+                    <form method="POST" action="{{ url_for('recommendations.dismiss_insight', insight_id=insight.id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Dismiss">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                
+                <div class="card-body">
+                    <h5 class="card-title">{{ insight.title }}</h5>
+                    <p class="card-text">{{ insight.description }}</p>
+                    
+                    {% if insight.get_insight_data() %}
+                    <div class="mt-3">
+                        {% set data = insight.get_insight_data() %}
+                        
+                        {% if data.get('affected_content') %}
+                        <div class="mb-2">
+                            <strong>Related Content:</strong>
+                            <ul class="list-unstyled small">
+                                {% for content in data.affected_content[:3] %}
+                                <li>• {{ content.title if content.title else content }}</li>
+                                {% endfor %}
+                                {% if data.affected_content|length > 3 %}
+                                <li>• ... and {{ data.affected_content|length - 3 }} more</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        {% if data.get('friend_names') %}
+                        <div class="mb-2">
+                            <strong>Friends Involved:</strong>
+                            <div class="small">
+                                {% for friend in data.friend_names[:3] %}
+                                <span class="badge bg-light text-dark me-1">{{ friend }}</span>
+                                {% endfor %}
+                                {% if data.friend_names|length > 3 %}
+                                <span class="text-muted">+{{ data.friend_names|length - 3 }} more</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if data.get('trend_data') %}
+                        <div class="mb-2">
+                            <strong>Trend Analysis:</strong>
+                            <div class="small">
+                                {% if data.trend_data.get('velocity') %}
+                                <div>Velocity: {{ "%.1f"|format(data.trend_data.velocity) }}/hour</div>
+                                {% endif %}
+                                {% if data.trend_data.get('growth_rate') %}
+                                <div>Growth: {{ "%.1f"|format(data.trend_data.growth_rate * 100) }}%</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if data.get('recommendation_accuracy') %}
+                        <div class="mb-2">
+                            <strong>Accuracy:</strong>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar bg-success" 
+                                     style="width: {{ data.recommendation_accuracy * 100 }}%"></div>
+                            </div>
+                            <small class="text-muted">{{ "%.1f"|format(data.recommendation_accuracy * 100) }}% accurate</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer bg-transparent">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            {{ insight.created_at.strftime('%b %d, %Y') }}
+                        </small>
+                        <div>
+                            <span class="badge bg-info me-1">
+                                Confidence: {{ "%.1f"|format(insight.confidence_score) }}
+                            </span>
+                            <span class="badge bg-secondary">
+                                Relevance: {{ "%.1f"|format(insight.relevance_score) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination could be added here if needed -->
+    
+    {% else %}
+    <div class="row">
+        <div class="col-12 text-center py-5">
+            <i class="fas fa-lightbulb fa-3x text-muted mb-3"></i>
+            <h3 class="text-muted">No Insights Available</h3>
+            <p class="text-muted mb-4">
+                We'll generate social insights as you interact with friends and content.
+                <br>
+                Start by adding friends and rating content to get personalized insights!
+            </p>
+            <div class="d-flex justify-content-center gap-2">
+                <a href="{{ url_for('recommendations.index') }}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Recommendations
+                </a>
+                <a href="{{ url_for('auth.search_users') }}" class="btn btn-outline-success">
+                    <i class="fas fa-user-plus me-1"></i>Find Friends
+                </a>
+                <a href="{{ url_for('content.index') }}" class="btn btn-outline-info">
+                    <i class="fas fa-search me-1"></i>Browse Content
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Insight Detail Modal -->
+<div class="modal fade" id="insightDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Insight Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="insightDetailContent">
+                    <!-- Content will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showInsightDetail(insightId) {
+    // This could be used to show more detailed insight information
+    // For now, it's just a placeholder
+    console.log('Show insight detail for:', insightId);
+}
+
+// Auto-refresh insights every 5 minutes
+setInterval(function() {
+    // Only refresh if the page has been idle
+    if (document.visibilityState === 'visible') {
+        fetch(window.location.href, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                // Could update specific parts of the page
+                console.log('Insights refreshed');
+            }
+        })
+        .catch(console.error);
+    }
+}, 300000); // 5 minutes
+</script>
+{% endblock %}

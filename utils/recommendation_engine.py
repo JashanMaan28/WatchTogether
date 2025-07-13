@@ -3,11 +3,14 @@ Recommendation Engine for WatchTogether
 Implements content-based filtering, collaborative filtering, and hybrid approaches
 """
 
+import logging
 from app import db
-from models import User, Content, ContentRating, UserWatchlist, Group, GroupMember
+from models import User, Content, ContentRating, UserWatchlist, Group, GroupMember, Friendship
 from models.recommendations import (
     UserPreferenceProfile, GroupPreferenceProfile, Recommendation, 
-    RecommendationFeedback, RecommendationHistory, ABTestExperiment
+    RecommendationFeedback, RecommendationHistory, ABTestExperiment,
+    SocialRecommendationSignal, FriendRecommendation, GroupRecommendationSession,
+    GroupRecommendationVote, TrendingContent, RecommendationShare, SocialRecommendationInsight
 )
 from datetime import datetime, timedelta
 import json
@@ -15,6 +18,9 @@ import math
 from collections import defaultdict, Counter
 from typing import List, Dict, Tuple, Optional
 from sqlalchemy import and_, or_, func, desc
+
+# Create logger
+logger = logging.getLogger(__name__)
 
 
 class RecommendationEngine:
@@ -26,7 +32,12 @@ class RecommendationEngine:
             'collaborative': self._collaborative_filtering,
             'hybrid': self._hybrid_filtering,
             'trending': self._trending_content,
-            'group_consensus': self._group_consensus_filtering
+            'group_consensus': self._group_consensus_filtering,
+            'social_collaborative': self._social_collaborative_filtering,
+            'friend_based': self._friend_based_filtering,
+            'social_hybrid': self._social_hybrid_filtering,
+            'trending_social': self._trending_social_content,
+            'group_social': self._group_social_filtering
         }
     
     def generate_recommendations(self, user_id: int = None, group_id: int = None, 
@@ -732,11 +743,504 @@ class RecommendationEngine:
         random.shuffle(scored_content)
         return scored_content[:limit]
 
-    def _group_collaborative_filtering(self, profile: GroupPreferenceProfile, limit: int) -> List[Tuple]:
-        """Collaborative filtering for groups based on similar groups"""
-        # This is a simplified version - could be enhanced with more sophisticated group similarity
-        return []
+    def _group_consensus_filtering(self, profile: GroupPreferenceProfile, limit: int) -> List[Tuple]:
+        """Recommend content that would appeal to the group consensus"""
+        group = profile.group
+        members = GroupMember.query.filter_by(group_id=group.id).all()
+        
+        if not members:
+            return []
+        
+        # Get all member preferences
+        member_profiles = []
+        for member in members:
+            user_profile = self._get_or_create_user_profile(member.user_id)
+            member_profiles.append(user_profile)
+        
+        # Find content that would score well for most members
+        content_items = Content.query.filter_by(status='active').all()
+        consensus_recommendations = []
+        
+        for content in content_items:
+            member_scores = []
+            
+            for user_profile in member_profiles:
+                genre_prefs = user_profile.get_genre_preferences()
+                type_prefs = user_profile.get_content_type_preferences()
+                score = self._calculate_content_score(content, genre_prefs, type_prefs)
+                member_scores.append(score)
+            
+            if member_scores:
+                # Calculate consensus metrics
+                avg_score = sum(member_scores) / len(member_scores)
+                min_score = min(member_scores)
+                disagreement = max(member_scores) - min_score
+                
+                # Consensus score favors content with high average and low disagreement
+                consensus_score = avg_score * (1 - disagreement / 5.0) * min_score
+                
+                if consensus_score > 0:
+                    reasoning = f"Group consensus: avg {avg_score:.2f}, min {min_score:.2f}"
+                    consensus_recommendations.append((content, consensus_score, reasoning))
+        
+        consensus_recommendations.sort(key=lambda x: x[1], reverse=True)
+        return consensus_recommendations[:limit]
+    
+    def _calculate_content_score(self, content: Content, genre_prefs: Dict, type_prefs: Dict) -> float:
+        """Calculate content score based on preferences"""
+        score = 0.0
+        
+        # Genre matching
+        content_genres = content.get_genres()
+        if content_genres and genre_prefs:
+            genre_scores = [genre_prefs.get(genre, 0) for genre in content_genres]
+            if genre_scores:
+                score += max(genre_scores) * 0.6  # Use best matching genre
+        
+        # Content type matching
+        if content.type in type_prefs:
+            score += type_prefs[content.type] * 0.3
+        
+        # Quality boost for high-rated content
+        if content.rating:
+            score += (content.rating / 10.0) * 0.1
+        
+        return score
+    
+    def _generate_content_reasoning(self, content: Content, genre_prefs: Dict, type_prefs: Dict) -> str:
+        """Generate human-readable reasoning for recommendation"""
+        reasons = []
+        
+        content_genres = content.get_genres()
+        if content_genres and genre_prefs:
+            matching_genres = [g for g in content_genres if g in genre_prefs and genre_prefs[g] > 0.5]
+            if matching_genres:
+                reasons.append(f"matches your interest in {', '.join(matching_genres)}")
+        
+        if content.type in type_prefs and type_prefs[content.type] > 0.5:
+            reasons.append(f"you enjoy {content.type}s")
+        
+        if content.rating and content.rating >= 7.0:
+            reasons.append(f"highly rated ({content.rating}/10)")
+        
+        return "Recommended because " + " and ".join(reasons) if reasons else "Recommended for you"
+    
+    def _find_similar_users(self, user_id: int, user_ratings: Dict) -> List[Tuple[int, float]]:
+        """Find users with similar rating patterns using cosine similarity"""
+        if not user_ratings:
+            return []
+        
+        # Get other users who have rated common content
+        common_content_ids = list(user_ratings.keys())
+        other_ratings = db.session.query(
+            ContentRating.user_id,
+            ContentRating.content_id,
+            ContentRating.rating
+        ).filter(
+            and_(ContentRating.content_id.in_(common_content_ids),
+                 ContentRating.user_id != user_id)
+        ).all()
+        
+        # Group by user
+        user_rating_maps = defaultdict(dict)
+        for user_id_other, content_id, rating in other_ratings:
+            user_rating_maps[user_id_other][content_id] = rating
+        
+        # Calculate similarities
+        similarities = []
+        for other_user_id, other_ratings in user_rating_maps.items():
+            # Find common content
+            common_content = set(user_ratings.keys()) & set(other_ratings.keys())
+            if len(common_content) >= 3:  # Need at least 3 common ratings
+                similarity = self._cosine_similarity(
+                    [user_ratings[cid] for cid in common_content],
+                    [other_ratings[cid] for cid in common_content]
+                )
+                if similarity > 0.1:  # Only consider reasonably similar users
+                    similarities.append((other_user_id, similarity))
+        
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        return similarities
+    
+    def _cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
+        """Calculate cosine similarity between two vectors"""
+        if not vec1 or not vec2 or len(vec1) != len(vec2):
+            return 0.0
+        
+        dot_product = sum(a * b for a, b in zip(vec1, vec2))
+        magnitude1 = math.sqrt(sum(a * a for a in vec1))
+        magnitude2 = math.sqrt(sum(b * b for b in vec2))
+        
+        if magnitude1 == 0 or magnitude2 == 0:
+            return 0.0
+        
+        return dot_product / (magnitude1 * magnitude2)
+    
+    def _filter_recommendations(self, recommendations: List[Tuple], 
+                              user_id: int = None, group_id: int = None) -> List[Tuple]:
+        """Filter out content user/group has already seen, rated, or has active recommendations for"""
+        if not recommendations:
+            return []
+        
+        filtered = []
+        seen_content_ids = set()
+        
+        # Get already rated/watchlisted content
+        excluded_content_ids = set()
+        
+        if user_id:
+            # User's ratings and watchlist
+            user_ratings = ContentRating.query.filter_by(user_id=user_id).all()
+            user_watchlist = UserWatchlist.query.filter_by(user_id=user_id).all()
+            
+            excluded_content_ids.update(r.content_id for r in user_ratings)
+            excluded_content_ids.update(w.content_id for w in user_watchlist)
+            
+            # Add existing active recommendations to prevent duplicates
+            existing_recs = Recommendation.query.filter_by(
+                user_id=user_id,
+                status='active'
+            ).filter(
+                Recommendation.expires_at > datetime.utcnow()
+            ).all()
+            excluded_content_ids.update(r.content_id for r in existing_recs)
+        
+        if group_id:
+            # Group's watchlist
+            from models import GroupWatchlist
+            group_watchlist = GroupWatchlist.query.filter_by(group_id=group_id).all()
+            excluded_content_ids.update(gw.content_id for gw in group_watchlist)
+            
+            # Add existing active group recommendations to prevent duplicates
+            existing_group_recs = Recommendation.query.filter_by(
+                group_id=group_id,
+                status='active'
+            ).filter(
+                Recommendation.expires_at > datetime.utcnow()
+            ).all()
+            excluded_content_ids.update(r.content_id for r in existing_group_recs)
+        
+        # Filter recommendations and remove duplicates within this batch
+        for content, score, reasoning in recommendations:
+            if content.id not in excluded_content_ids and content.id not in seen_content_ids:
+                filtered.append((content, score, reasoning))
+                seen_content_ids.add(content.id)
+        
+        return filtered
+    
+    def _update_recommendation_history(self, user_id: int, group_id: int, 
+                                     algorithm: str, total_recs: int,
+                                     experiment_id: str = None, variant: str = None):
+        """Update recommendation history for tracking"""
+        history = RecommendationHistory(
+            user_id=user_id,
+            group_id=group_id,
+            algorithm=algorithm,
+            total_recommendations=total_recs,
+            experiment_id=experiment_id,
+            variant=variant
+        )
+        db.session.add(history)
+    
+    def _get_popular_content_fallback(self, profile, limit: int) -> List[Tuple]:
+        """Fallback recommendations for users with no preference data"""
+        # Get highly-rated, popular content for new users
+        content_query = Content.query.filter_by(status='active')
+        
+        # Filter by rating if available
+        if hasattr(profile, 'get_rating_range'):
+            min_rating, max_rating = profile.get_rating_range()
+            content_query = content_query.filter(
+                and_(Content.rating >= min_rating, Content.rating <= max_rating)
+            )
+        else:
+            # Default to well-rated content (7.0+)
+            content_query = content_query.filter(Content.rating >= 7.0)
+        
+        # Order by rating and popularity
+        content_items = content_query.order_by(
+            desc(Content.rating),
+            desc(Content.popularity if hasattr(Content, 'popularity') else Content.rating)
+        ).limit(limit * 2).all()  # Get more items to have variety
+        
+        scored_content = []
+        for content in content_items:
+            # Base score on rating and add small random factor for variety
+            base_score = (content.rating or 0) * 0.8
+            popularity_score = getattr(content, 'popularity', 5.0) * 0.2
+            score = base_score + popularity_score
+            
+            reasoning = f"Popular choice: High rating ({content.rating}/10)"
+            scored_content.append((content, score, reasoning))
+        
+        # Add some variety by shuffling highly-scored items
+        import random
+        random.shuffle(scored_content)
+        return scored_content[:limit]
 
+    def _social_collaborative_filtering(self, user_id: int, limit: int = 10, **kwargs) -> List[Dict]:
+        """Social collaborative filtering based on friend interactions"""
+        try:
+            from models.recommendations import SocialRecommendationSignal
+            from models import Friendship
+            
+            # Get user's friends
+            friends = db.session.query(User).join(
+                Friendship, 
+                (Friendship.requester_id == User.id) | (Friendship.addressee_id == User.id)
+            ).filter(
+                ((Friendship.requester_id == user_id) | (Friendship.addressee_id == user_id)),
+                Friendship.status == 'accepted',
+                User.id != user_id
+            ).all()
+            
+            if not friends:
+                # Fallback to regular collaborative filtering
+                return self._collaborative_filtering(user_id, limit, **kwargs)
+            
+            friend_ids = [f.id for f in friends]
+            
+            # Get content liked by friends
+            friend_signals = db.session.query(
+                SocialRecommendationSignal.content_id,
+                func.avg(SocialRecommendationSignal.signal_strength).label('avg_strength'),
+                func.count().label('signal_count')
+            ).filter(
+                SocialRecommendationSignal.user_id.in_(friend_ids),
+                SocialRecommendationSignal.signal_type.in_(['like', 'rating', 'watch'])
+            ).group_by(SocialRecommendationSignal.content_id).all()
+            
+            # Get user's existing interactions to avoid duplicates
+            user_content = set(r.content_id for r in db.session.query(ContentRating.content_id).filter_by(user_id=user_id).all())
+            user_watchlist = set(w.content_id for w in db.session.query(UserWatchlist.content_id).filter_by(user_id=user_id).all())
+            user_signals = set(s.content_id for s in db.session.query(SocialRecommendationSignal.content_id).filter_by(user_id=user_id).all())
+            
+            excluded_content = user_content | user_watchlist | user_signals
+            
+            # Score and rank content
+            recommendations = []
+            for signal in friend_signals:
+                if signal.content_id not in excluded_content:
+                    content = Content.query.get(signal.content_id)
+                    if content:
+                        score = signal.avg_strength * (1 + math.log(signal.signal_count))
+                        recommendations.append({
+                            'content_id': content.id,
+                            'score': float(score),
+                            'reason': f'Liked by {signal.signal_count} friend{"s" if signal.signal_count > 1 else ""}',
+                            'algorithm': 'social_collaborative'
+                        })
+            
+            # Sort by score and return top recommendations
+            recommendations.sort(key=lambda x: x['score'], reverse=True)
+            return recommendations[:limit]
+            
+        except Exception as e:
+            logger.error(f"Error in social collaborative filtering: {e}")
+            return self._collaborative_filtering(user_id, limit, **kwargs)
+
+    def _friend_based_filtering(self, user_id: int, limit: int = 10, **kwargs) -> List[Dict]:
+        """Friend-based recommendations using explicit friend recommendations"""
+        try:
+            from models.recommendations import FriendRecommendation
+            
+            # Get recommendations from friends
+            friend_recs = db.session.query(FriendRecommendation).filter_by(
+                recipient_id=user_id,
+                status='pending'
+            ).order_by(FriendRecommendation.created_at.desc()).all()
+            
+            recommendations = []
+            for rec in friend_recs[:limit]:
+                content = Content.query.get(rec.content_id)
+                if content:
+                    recommender = User.query.get(rec.recommender_id)
+                    recommendations.append({
+                        'content_id': content.id,
+                        'score': 1.0,  # Direct friend recommendations get high priority
+                        'reason': f'Recommended by {recommender.username}',
+                        'algorithm': 'friend_based',
+                        'friend_rec_id': rec.id
+                    })
+            
+            # If we don't have enough friend recommendations, supplement with social collaborative
+            if len(recommendations) < limit:
+                social_recs = self._social_collaborative_filtering(
+                    user_id, limit - len(recommendations), **kwargs
+                )
+                recommendations.extend(social_recs)
+            
+            return recommendations
+            
+        except Exception as e:
+            logger.error(f"Error in friend-based filtering: {e}")
+            return self._social_collaborative_filtering(user_id, limit, **kwargs)
+
+    def _social_hybrid_filtering(self, user_id: int, limit: int = 10, **kwargs) -> List[Dict]:
+        """Hybrid approach combining social signals with content-based filtering"""
+        try:
+            # Get recommendations from multiple social algorithms
+            social_collab = self._social_collaborative_filtering(user_id, limit // 2, **kwargs)
+            friend_based = self._friend_based_filtering(user_id, limit // 2, **kwargs)
+            content_based = self._content_based_filtering(user_id, limit // 2, **kwargs)
+            
+            # Combine and deduplicate
+            all_recs = {}
+            
+            # Weight social recommendations higher
+            for rec in social_collab:
+                content_id = rec['content_id']
+                if content_id not in all_recs:
+                    all_recs[content_id] = rec.copy()
+                    all_recs[content_id]['score'] *= 1.2  # Social boost
+                else:
+                    all_recs[content_id]['score'] += rec['score'] * 0.5
+            
+            # Add friend recommendations with highest weight
+            for rec in friend_based:
+                content_id = rec['content_id']
+                if content_id not in all_recs:
+                    all_recs[content_id] = rec.copy()
+                    all_recs[content_id]['score'] *= 1.5  # Friend boost
+                else:
+                    all_recs[content_id]['score'] += rec['score'] * 0.7
+            
+            # Add content-based with lower weight
+            for rec in content_based:
+                content_id = rec['content_id']
+                if content_id not in all_recs:
+                    all_recs[content_id] = rec.copy()
+                else:
+                    all_recs[content_id]['score'] += rec['score'] * 0.3
+            
+            # Update algorithm tag
+            for rec in all_recs.values():
+                rec['algorithm'] = 'social_hybrid'
+            
+            # Sort by score and return top recommendations
+            recommendations = list(all_recs.values())
+            recommendations.sort(key=lambda x: x['score'], reverse=True)
+            return recommendations[:limit]
+            
+        except Exception as e:
+            logger.error(f"Error in social hybrid filtering: {e}")
+            return self._hybrid_filtering(user_id, limit, **kwargs)
+
+    def _trending_social_content(self, user_id: int = None, limit: int = 10, **kwargs) -> List[Dict]:
+        """Get trending content within user's social network"""
+        try:
+            from models.recommendations import TrendingContent, SocialRecommendationSignal
+            from models import Friendship
+            
+            if user_id:
+                # Get trending content among friends
+                friends = db.session.query(User.id).join(
+                    Friendship, 
+                    (Friendship.requester_id == User.id) | (Friendship.addressee_id == User.id)
+                ).filter(
+                    ((Friendship.requester_id == user_id) | (Friendship.addressee_id == user_id)),
+                    Friendship.status == 'accepted',
+                    User.id != user_id
+                ).all()
+                
+                friend_ids = [f.id for f in friends] + [user_id]
+                
+                # Get recent social signals from friends
+                recent_signals = db.session.query(
+                    SocialRecommendationSignal.content_id,
+                    func.count().label('signal_count'),
+                    func.avg(SocialRecommendationSignal.signal_strength).label('avg_strength')
+                ).filter(
+                    SocialRecommendationSignal.user_id.in_(friend_ids),
+                    SocialRecommendationSignal.created_at >= datetime.utcnow() - timedelta(days=7),
+                    SocialRecommendationSignal.signal_type.in_(['like', 'share', 'watch'])
+                ).group_by(SocialRecommendationSignal.content_id).all()
+                
+            else:
+                # Global trending if no user specified
+                recent_signals = db.session.query(
+                    SocialRecommendationSignal.content_id,
+                    func.count().label('signal_count'),
+                    func.avg(SocialRecommendationSignal.signal_strength).label('avg_strength')
+                ).filter(
+                    SocialRecommendationSignal.created_at >= datetime.utcnow() - timedelta(days=7),
+                    SocialRecommendationSignal.signal_type.in_(['like', 'share', 'watch'])
+                ).group_by(SocialRecommendationSignal.content_id).all()
+            
+            recommendations = []
+            for signal in recent_signals:
+                content = Content.query.get(signal.content_id)
+                if content:
+                    # Calculate trending score
+                    trending_score = signal.signal_count * signal.avg_strength
+                    recommendations.append({
+                        'content_id': content.id,
+                        'score': float(trending_score),
+                        'reason': f'Trending with {signal.signal_count} interactions',
+                        'algorithm': 'trending_social'
+                    })
+            
+            # Sort by trending score and return top recommendations
+            recommendations.sort(key=lambda x: x['score'], reverse=True)
+            return recommendations[:limit]
+            
+        except Exception as e:
+            logger.error(f"Error in trending social content: {e}")
+            return self._trending_content(user_id, limit, **kwargs)
+
+    def _group_social_filtering(self, user_id: int = None, group_id: int = None, limit: int = 10, **kwargs) -> List[Dict]:
+        """Group recommendations enhanced with social signals"""
+        try:
+            if not group_id and user_id:
+                # Get user's most active group
+                from models import GroupMember
+                group_member = GroupMember.query.filter_by(user_id=user_id).first()
+                if group_member:
+                    group_id = group_member.group_id
+            
+            if not group_id:
+                # Fallback to regular recommendations
+                return self._social_collaborative_filtering(user_id, limit, **kwargs)
+            
+            # Get group members
+            from models import GroupMember
+            group_members = db.session.query(User.id).join(GroupMember).filter(
+                GroupMember.group_id == group_id
+            ).all()
+            
+            member_ids = [m.id for m in group_members]
+            
+            # Get group social signals
+            from models.recommendations import SocialRecommendationSignal
+            group_signals = db.session.query(
+                SocialRecommendationSignal.content_id,
+                func.count().label('signal_count'),
+                func.avg(SocialRecommendationSignal.signal_strength).label('avg_strength')
+            ).filter(
+                SocialRecommendationSignal.user_id.in_(member_ids),
+                SocialRecommendationSignal.signal_type.in_(['like', 'rating', 'watch'])
+            ).group_by(SocialRecommendationSignal.content_id).all()
+            
+            recommendations = []
+            for signal in group_signals:
+                content = Content.query.get(signal.content_id)
+                if content:
+                    group_score = signal.avg_strength * (1 + math.log(signal.signal_count))
+                    recommendations.append({
+                        'content_id': content.id,
+                        'score': float(group_score),
+                        'reason': f'Popular in group ({signal.signal_count} members liked)',
+                        'algorithm': 'group_social'
+                    })
+            
+            # Sort by score and return top recommendations
+            recommendations.sort(key=lambda x: x['score'], reverse=True)
+            return recommendations[:limit]
+            
+        except Exception as e:
+            logger.error(f"Error in group social filtering: {e}")
+            return self._group_consensus_filtering(user_id, group_id, limit, **kwargs)
+    
 
 # Utility functions for recommendation management
 def mark_recommendation_feedback(recommendation_id: int, user_id: int, 
@@ -812,5 +1316,5 @@ def update_recommendation_metrics():
             history.click_rate = clicked / total if total > 0 else 0
             history.like_rate = liked / total if total > 0 else 0
             history.updated_at = datetime.utcnow()
-    
-    db.session.commit()
+        
+        db.session.commit()

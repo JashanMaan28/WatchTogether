@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Recommend to Friend{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-share text-primary me-2"></i>
+                        Recommend to Friend
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if content %}
+                    <div class="alert alert-info">
+                        <strong>Recommending:</strong> {{ content.title }}
+                        <span class="badge bg-primary ms-2">{{ content.type }}</span>
+                    </div>
+                    {% endif %}
+
+                    <form method="POST">
+                        {% if not content %}
+                        <div class="mb-3">
+                            <label for="content_id" class="form-label">Content *</label>
+                            <input type="number" class="form-control" id="content_id" name="content_id" required>
+                            <div class="form-text">Enter the content ID you want to recommend.</div>
+                        </div>
+                        {% else %}
+                        <input type="hidden" name="content_id" value="{{ content.id }}">
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="friend_id" class="form-label">Recommend to Friend *</label>
+                            <select class="form-select" id="friend_id" name="friend_id" required>
+                                <option value="">Select a friend...</option>
+                                {% for friend in friends %}
+                                <option value="{{ friend.id }}">{{ friend.username }} ({{ friend.get_full_name() or friend.username }})</option>
+                                {% endfor %}
+                            </select>
+                            {% if not friends %}
+                            <div class="form-text text-warning">
+                                You don't have any friends yet. 
+                                <a href="{{ url_for('auth.search_users') }}">Find and add friends</a> to share recommendations.
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="rating" class="form-label">Your Rating (optional)</label>
+                            <select class="form-select" id="rating" name="rating">
+                                <option value="">Select your rating...</option>
+                                <option value="1">1 - Poor</option>
+                                <option value="2">2 - Fair</option>
+                                <option value="3">3 - Good</option>
+                                <option value="4">4 - Very Good</option>
+                                <option value="5">5 - Excellent</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="message" class="form-label">Personal Message (optional)</label>
+                            <textarea class="form-control" id="message" name="message" rows="3" 
+                                    placeholder="Tell your friend why you recommend this..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="tags" class="form-label">Tags (optional)</label>
+                            <input type="text" class="form-control" id="tags_input" 
+                                   placeholder="Add tags separated by commas (e.g., funny, romantic, action)">
+                            <div id="tags_container" class="mt-2"></div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('recommendations.index') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Back
+                            </a>
+                            <button type="submit" class="btn btn-primary" {% if not friends %}disabled{% endif %}>
+                                <i class="fas fa-paper-plane me-1"></i>Send Recommendation
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tagsInput = document.getElementById('tags_input');
+    const tagsContainer = document.getElementById('tags_container');
+    let tags = [];
+
+    tagsInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            addTag(this.value.trim());
+            this.value = '';
+        }
+    });
+
+    tagsInput.addEventListener('blur', function() {
+        if (this.value.trim()) {
+            addTag(this.value.trim());
+            this.value = '';
+        }
+    });
+
+    function addTag(tagText) {
+        if (tagText && !tags.includes(tagText) && tags.length < 5) {
+            tags.push(tagText);
+            renderTags();
+        }
+    }
+
+    function removeTag(tagText) {
+        tags = tags.filter(tag => tag !== tagText);
+        renderTags();
+    }
+
+    function renderTags() {
+        tagsContainer.innerHTML = '';
+        tags.forEach(tag => {
+            const tagElement = document.createElement('span');
+            tagElement.className = 'badge bg-primary me-1 mb-1';
+            tagElement.innerHTML = `
+                ${tag}
+                <button type="button" class="btn-close btn-close-white ms-1" onclick="removeTag('${tag}')"></button>
+                <input type="hidden" name="tags" value="${tag}">
+            `;
+            tagsContainer.appendChild(tagElement);
+        });
+    }
+
+    // Make removeTag function global
+    window.removeTag = removeTag;
+});
+</script>
+{% endblock %}

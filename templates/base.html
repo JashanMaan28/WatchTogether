@@ -75,6 +75,38 @@
                             </a></li>
                         </ul>
                     </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-stars"></i> Recommendations
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('recommendations.index') }}">
+                                <i class="bi bi-house-heart"></i> My Recommendations
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header"><i class="bi bi-people"></i> Social Features</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('recommendations.recommend_to_friend') }}">
+                                <i class="bi bi-heart-arrow"></i> Friend Recommendations
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('recommendations.social_insights') }}">
+                                <i class="bi bi-graph-up-arrow"></i> Social Insights
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('recommendations.social_trending') }}">
+                                <i class="bi bi-fire"></i> Trending in Network
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header"><i class="bi bi-gear"></i> Tools</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('recommendations.preferences') }}">
+                                <i class="bi bi-sliders"></i> Preferences
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('recommendations.analytics') }}">
+                                <i class="bi bi-bar-chart"></i> Analytics
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('recommendations.history') }}">
+                                <i class="bi bi-clock-history"></i> History
+                            </a></li>
+                        </ul>
+                    </li>
                     {% endif %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.about') }}">About</a>

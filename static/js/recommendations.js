@@ -6,6 +6,8 @@
 class RecommendationSystem {
     constructor() {
         this.init();
+        // Make this instance globally accessible
+        window.recommendationSystem = this;
     }
 
     init() {
@@ -92,34 +94,60 @@ class RecommendationSystem {
         modalInstance.show();
     }
 
-    submitFeedback(recommendationId, feedbackType, comment = '') {
-        const csrfToken = document.querySelector('meta[name=csrf-token]');
+    async submitFeedback(recommendationId, feedbackType, comment = '') {
+        console.log('RecommendationSystem.submitFeedback called with:', { recommendationId, feedbackType, comment });
         
-        fetch('/recommendations/feedback', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
-            },
-            body: JSON.stringify({
-                recommendation_id: recommendationId,
-                feedback_type: feedbackType,
-                comment: comment
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
+        try {
+            const csrfToken = document.querySelector('meta[name=csrf-token]');
+            
+            if (!csrfToken) {
+                console.error('CSRF token not found in page');
+                throw new Error('CSRF token not found');
+            }
+
+            console.log('CSRF token found:', csrfToken.getAttribute('content'));
+            console.log('Submitting feedback:', { recommendationId, feedbackType, comment });
+            
+            const response = await fetch('/recommendations/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken.getAttribute('content')
+                },
+                body: JSON.stringify({
+                    recommendation_id: parseInt(recommendationId),
+                    feedback_type: feedbackType,
+                    comment: comment
+                })
+            });
+
+            console.log('Response status:', response.status);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Server error response:', errorData);
+                throw new Error(errorData.error || `HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Server response:', data);
+            
             if (data.success) {
                 this.updateFeedbackUI(recommendationId, feedbackType);
                 this.showAlert('Feedback recorded successfully!', 'success');
+                
+                // Close modal if open
+                const modal = bootstrap.Modal.getInstance(document.getElementById('feedbackModal'));
+                if (modal) {
+                    modal.hide();
+                }
             } else {
-                this.showAlert('Error recording feedback: ' + data.error, 'danger');
+                throw new Error(data.error || 'Unknown error occurred');
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            this.showAlert('Error recording feedback', 'danger');
-        });
+        } catch (error) {
+            console.error('Error submitting feedback:', error);
+            this.showAlert('Error recording feedback: ' + error.message, 'danger');
+        }
     }
 
     updateFeedbackUI(recommendationId, feedbackType) {
@@ -169,20 +197,29 @@ class RecommendationSystem {
         return icons[feedbackType] || '';
     }
 
-    trackRecommendationClick(recommendationId) {
-        const csrfToken = document.querySelector('meta[name=csrf-token]');
-        
-        fetch('/recommendations/feedback', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
-            },
-            body: JSON.stringify({
-                recommendation_id: recommendationId,
-                feedback_type: 'clicked'
-            })
-        }).catch(error => console.error('Error tracking click:', error));
+    async trackRecommendationClick(recommendationId) {
+        try {
+            const csrfToken = document.querySelector('meta[name=csrf-token]');
+            
+            if (!csrfToken) {
+                return; // Silently fail for click tracking
+            }
+            
+            await fetch('/recommendations/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken.getAttribute('content')
+                },
+                body: JSON.stringify({
+                    recommendation_id: parseInt(recommendationId),
+                    feedback_type: 'clicked'
+                })
+            });
+        } catch (error) {
+            console.error('Error tracking click:', error);
+            // Don't show user error for click tracking
+        }
     }
 
     generateRecommendations(button) {
@@ -396,42 +433,30 @@ class RecommendationSystem {
         const response = await fetch(`/recommendations/api/recommendations?${params}`);
         return await response.json();
     }
-
-    async submitRecommendationFeedback(recommendationId, feedbackType, comment = '') {
-        const csrfToken = document.querySelector('meta[name=csrf-token]');
-        
-        const response = await fetch('/recommendations/feedback', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
-            },
-            body: JSON.stringify({
-                recommendation_id: recommendationId,
-                feedback_type: feedbackType,
-                comment: comment
-            })
-        });
-        
-        return await response.json();
-    }
 }
 
 // Initialize recommendation system when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     window.recommendationSystem = new RecommendationSystem();
     
-    // Global helper function for template usage
-    window.submitFeedback = function() {
-        const recommendationId = document.getElementById('feedbackRecommendationId').value;
-        const feedbackType = document.getElementById('feedbackType').value;
-        const comment = document.getElementById('feedbackComment').value;
+    // Global helper functions for template usage
+    window.submitFeedback = function(recommendationId, feedbackType, comment = '') {
+        console.log('Global submitFeedback called with:', { recommendationId, feedbackType, comment });
         
-        window.recommendationSystem.submitFeedback(recommendationId, feedbackType, comment);
+        if (window.recommendationSystem) {
+            console.log('Using recommendationSystem instance');
+            window.recommendationSystem.submitFeedback(recommendationId, feedbackType, comment);
+        } else {
+            console.error('RecommendationSystem not initialized');
+        }
     };
     
     window.trackRecommendationClick = function(recommendationId) {
-        window.recommendationSystem.trackRecommendationClick(recommendationId);
+        if (window.recommendationSystem) {
+            window.recommendationSystem.trackRecommendationClick(recommendationId);
+        } else {
+            console.error('RecommendationSystem not initialized');
+        }
     };
 });
 
